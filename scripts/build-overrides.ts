@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Merge strategy files into overrides.json
+ * Build overrides.json from source files
+ *
+ * Merges sources/*.json → overrides.json
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -32,7 +34,8 @@ type HintsFile = {
   hints: Hint[];
 };
 
-const OVERRIDES_DIR = "theme-browser-registry-ts/overrides";
+const SOURCES_DIR = "theme-browser-registry-ts/sources";
+const OUTPUT_FILE = "theme-browser-registry-ts/overrides.json";
 
 function readJson<T>(filePath: string): T | null {
   if (!existsSync(filePath)) return null;
@@ -43,17 +46,16 @@ function writeJson(filePath: string, data: unknown): void {
   writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
 
-function mergeOverrides(): void {
+function buildOverrides(): void {
   const allThemes: ThemeEntry[] = [];
   const builtin: ThemeEntry[] = [];
 
-  // Read all strategy files
-  const files = readdirSync(OVERRIDES_DIR).filter((f) => f.endsWith(".json"));
+  const files = readdirSync(SOURCES_DIR).filter((f) => f.endsWith(".json"));
 
   for (const file of files) {
     if (file === "hints.json") continue;
 
-    const filePath = path.join(OVERRIDES_DIR, file);
+    const filePath = path.join(SOURCES_DIR, file);
     const data = readJson<StrategyFile | { themes: ThemeEntry[] }>(filePath);
     if (!data) continue;
 
@@ -66,8 +68,7 @@ function mergeOverrides(): void {
     }
   }
 
-  // Apply hints
-  const hints = readJson<HintsFile>(path.join(OVERRIDES_DIR, "hints.json"));
+  const hints = readJson<HintsFile>(path.join(SOURCES_DIR, "hints.json"));
   if (hints?.hints) {
     const hintMap = new Map(hints.hints.map((h) => [h.repo, h.strategy]));
     for (const theme of allThemes) {
@@ -79,7 +80,6 @@ function mergeOverrides(): void {
     }
   }
 
-  // Sort by name
   allThemes.sort((a, b) =>
     (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase())
   );
@@ -87,16 +87,15 @@ function mergeOverrides(): void {
     (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase())
   );
 
-  // Write merged overrides.json
   const merged = {
     overrides: allThemes,
     ...(builtin.length > 0 && { builtin }),
   };
 
-  writeJson("theme-browser-registry-ts/overrides.json", merged);
+  writeJson(OUTPUT_FILE, merged);
 
-  console.log(`Merged ${allThemes.length} themes + ${builtin.length} builtin`);
-  console.log(`Written to theme-browser-registry-ts/overrides.json`);
+  console.log(`Built ${allThemes.length} themes + ${builtin.length} builtin`);
+  console.log(`Output: ${OUTPUT_FILE}`);
 }
 
-mergeOverrides();
+buildOverrides();

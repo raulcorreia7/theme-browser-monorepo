@@ -20,7 +20,7 @@ type ThemeEntry = {
   meta?: { strategy?: Strategy };
 };
 
-type OverridesFile = {
+type SourcesFile = {
   overrides: ThemeEntry[];
   builtin?: ThemeEntry[];
 };
@@ -48,26 +48,25 @@ type DetectionResult = {
   needsSourceInspection: boolean;
 };
 
-type VerificationRow = {
+type DetectionRow = {
   repo: string;
   themeNames: string[];
   currentStrategy: StrategyType | "missing";
   detectedStrategy: StrategyType;
   confidence: number;
   status: "match" | "mismatch" | "missing-meta" | "error";
-  needsSourceInspection: boolean;
   signals: DetectionSignal[];
   error?: string;
 };
 
 type CliOptions = {
   themesPath: string;
-  overridesPath: string;
+  sourcesPath: string;
   sample?: number;
   repo?: string;
   theme?: string;
   apply: boolean;
-  verbose: boolean;
+  report: boolean;
   cacheDir: string;
   outDir: string;
   noCache: boolean;
@@ -77,7 +76,7 @@ type LogLevel = "info" | "success" | "warn" | "error" | "dim";
 
 const DEFAULTS = {
   themesPath: "theme-browser-registry-ts/artifacts/themes.json",
-  overridesPath: "theme-browser-registry-ts/overrides.json",
+  sourcesPath: "theme-browser-registry-ts/overrides.json",
   cacheDir: ".cache/theme-verifier",
   outDir: "reports",
 };
@@ -126,9 +125,9 @@ function clearProgress(): void {
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     themesPath: DEFAULTS.themesPath,
-    overridesPath: DEFAULTS.overridesPath,
+    sourcesPath: DEFAULTS.sourcesPath,
     apply: false,
-    verbose: false,
+    report: false,
     cacheDir: DEFAULTS.cacheDir,
     outDir: DEFAULTS.outDir,
     noCache: false,
@@ -139,14 +138,14 @@ function parseArgs(argv: string[]): CliOptions {
     const next = argv[i + 1];
 
     if (a === "--themes" && next) { opts.themesPath = next; i++; continue; }
-    if (a === "--overrides" && next) { opts.overridesPath = next; i++; continue; }
+    if (a === "--sources" && next) { opts.sourcesPath = next; i++; continue; }
     if (a === "--sample" && next) { opts.sample = Number(next); i++; continue; }
     if (a === "--repo" && next) { opts.repo = next; i++; continue; }
     if (a === "--theme" && next) { opts.theme = next; i++; continue; }
     if (a === "--cache-dir" && next) { opts.cacheDir = next; i++; continue; }
     if (a === "--out-dir" && next) { opts.outDir = next; i++; continue; }
     if (a === "--apply") { opts.apply = true; continue; }
-    if (a === "--verbose" || a === "-v") { opts.verbose = true; continue; }
+    if (a === "--report") { opts.report = true; continue; }
     if (a === "--no-cache") { opts.noCache = true; continue; }
     if (a === "--help" || a === "-h") {
       printHelp();
@@ -159,28 +158,31 @@ function parseArgs(argv: string[]): CliOptions {
 
 function printHelp(): void {
   console.log(`
-verify-themes.ts
+detect-strategies.ts - Detect theme loading strategies
 
 Usage:
-  tsx scripts/verify-themes.ts [options]
+  tsx scripts/detect-strategies.ts [options]
 
 Options:
   --themes <path>       Path to artifacts/themes.json
-  --overrides <path>    Path to overrides.json
-  --sample <n>          Verify first N repos
-  --repo <owner/name>   Verify only one repo
-  --theme <name>        Verify theme by name (e.g., tokyonight)
-  --apply               Apply safe repo-level strategy updates to overrides.json
+  --sources <path>      Path to overrides.json
+  --sample <n>          Detect first N repos
+  --repo <owner/name>   Detect only one repo
+  --theme <name>        Detect theme by name
+  --apply               Update sources/*.json with detected strategies
+  --report              Show detailed report output
   --cache-dir <path>    Cache directory
   --out-dir <path>      Output reports directory
   --no-cache            Disable cache reads/writes
-  -v, --verbose         Verbose logs
   -h, --help            Show help
 
+Output:
+  Always writes: reports/detection.json
+
 Examples:
-  tsx scripts/verify-themes.ts --sample 20 -v
-  tsx scripts/verify-themes.ts --repo folke/tokyonight.nvim -v
-  tsx scripts/verify-themes.ts --theme catppuccin -v
+  tsx scripts/detect-strategies.ts --sample 20
+  tsx scripts/detect-strategies.ts --repo folke/tokyonight.nvim
+  tsx scripts/detect-strategies.ts --apply
 `);
 }
 
@@ -249,7 +251,6 @@ function detectFromText(readme: string): DetectionResult {
   const text = readme;
   const lower = readme.toLowerCase();
 
-  // LOAD signals - explicit .load() function is the strongest indicator
   if (/require\(["'][^"']+["']\)\.load\s*\(/i.test(text)) {
     signals.push({ strategy: "load", score: 8, reason: `README contains require(...).load(...)` });
   }
@@ -257,7 +258,6 @@ function detectFromText(readme: string): DetectionResult {
     signals.push({ strategy: "load", score: 2, reason: `README shows .load() pattern` });
   }
 
-  // SETUP signals - setup() for config + colorscheme to load
   if (/require\(["'][^"']+["']\)\.setup\s*\(/i.test(text)) {
     signals.push({ strategy: "setup", score: 6, reason: `README contains require(...).setup(...)` });
   }
@@ -265,26 +265,20 @@ function detectFromText(readme: string): DetectionResult {
     signals.push({ strategy: "setup", score: 2, reason: `README shows setup({...}) options block` });
   }
 
-  // COLORSCHEME signals - multiple patterns including vim.cmd variations
-  // Pattern 1: :colorscheme name
   if (/:?colorscheme\s+[a-z0-9_.-]+/i.test(text)) {
     signals.push({ strategy: "colorscheme", score: 4, reason: `README shows :colorscheme usage` });
   }
-  // Pattern 2: vim.cmd("colorscheme name") or vim.cmd('colorscheme name')
   if (/vim\.cmd\s*\(\s*["']colorscheme\s+[a-z0-9_.-]+["']\s*\)/i.test(text)) {
     signals.push({ strategy: "colorscheme", score: 4, reason: `README shows vim.cmd("colorscheme ...")` });
   }
-  // Pattern 3: vim.cmd.colorscheme("name") - chained call
   if (/vim\.cmd\.colorscheme\s*\(\s*["'][a-z0-9_.-]+["']\s*\)/i.test(text)) {
     signals.push({ strategy: "colorscheme", score: 4, reason: `README shows vim.cmd.colorscheme(...)` });
   }
 
-  // Vimscript-only indicators (no Lua module)
   if (/let\s+g:[a-z_]+\s*=/i.test(text) && !/require\(/i.test(text)) {
     signals.push({ strategy: "colorscheme", score: 3, reason: `README shows vim.g globals without require()` });
   }
 
-  // FILE signals - complex custom setup
   if (/background\s*=\s*["'](dark|light)["']/i.test(text) && /colorscheme/i.test(text)) {
     signals.push({ strategy: "file", score: 2, reason: `README suggests mode-dependent setup + colorscheme` });
   }
@@ -302,10 +296,6 @@ function detectFromText(readme: string): DetectionResult {
 
   for (const s of signals) tally[s.strategy] += s.score;
 
-  // Tie-breaking rules based on analysis:
-  // - load > setup when both present (explicit .load() is distinctive)
-  // - setup > colorscheme when setup() exists (has config options)
-  // - When setup AND colorscheme both present, it's "setup" (theme-browser does both)
   if (tally.load > 0 && tally.setup > 0 && tally.load >= tally.setup) {
     tally.load = tally.load + 2;
   }
@@ -328,8 +318,7 @@ function detectFromText(readme: string): DetectionResult {
 
   const needsSourceInspection =
     detected === "unknown" ||
-    confidence < 0.7 ||
-    (detected === "file" && confidence < 0.85);
+    confidence < 0.9;
 
   return { detected, confidence, signals, needsSourceInspection };
 }
@@ -346,35 +335,26 @@ function inspectSource(repo: string, opts: CliOptions): Partial<DetectionResult>
 
   const signals: DetectionSignal[] = [];
 
-  // LESSON: File structure is strong signal - use as fallback when README fails
-  // Many themes have no usage docs but colors/ files prove they're themes
-
-  // Pure Vimscript colorscheme (colors/*.vim only, no Lua)
   if (hasColorsVim && !hasLuaModule && !hasColorsLua) {
     signals.push({ strategy: "colorscheme", score: 6, reason: `Repo has colors/*.vim without Lua module` });
   }
 
-  // Lua-based theme with both module and colors/ (setup pattern)
   if (hasLuaModule && hasColorsLua) {
     signals.push({ strategy: "setup", score: 4, reason: `Repo has Lua module + colors/*.lua` });
   }
 
-  // colors/*.lua without Lua module (lush.nvim themes, compiled themes)
   if (hasColorsLua && !hasLuaModule) {
     signals.push({ strategy: "colorscheme", score: 5, reason: `Repo has colors/*.lua without Lua module` });
   }
 
-  // Lua module without colors/ (may use plugin/ or direct load)
   if (hasLuaModule && !hasColorsDir) {
     signals.push({ strategy: "setup", score: 2, reason: `Repo has Lua module without colors/` });
   }
 
-  // plugin/ directory often means auto-load or special setup
   if (hasPluginDir && hasLuaModule) {
     signals.push({ strategy: "load", score: 2, reason: `Repo has lua/ + plugin/ layout` });
   }
 
-  // Any colors/*.vim with Lua module (hybrid themes)
   if (hasColorsVim && hasLuaModule && !hasColorsLua) {
     signals.push({ strategy: "colorscheme", score: 4, reason: `Repo has colors/*.vim + Lua module` });
   }
@@ -387,7 +367,7 @@ function inspectSource(repo: string, opts: CliOptions): Partial<DetectionResult>
 
   return {
     detected: (best?.[0] ?? "unknown") as StrategyType,
-    confidence: 0.55,
+    confidence: 0.5,
     signals,
     needsSourceInspection: false,
   };
@@ -408,18 +388,18 @@ function findThemeByName(themes: ThemeEntry[], name: string): ThemeEntry | undef
   return themes.find((t) => t.name === name);
 }
 
-function findCurrentStrategyFromOverrides(repo: string, overrides: OverridesFile): StrategyType | "missing" {
-  const entry = overrides.overrides.find((o) => o.repo === repo);
+function findCurrentStrategy(repo: string, sources: SourcesFile): StrategyType | "missing" {
+  const entry = sources.overrides.find((o) => o.repo === repo);
   return (entry?.meta?.strategy?.type as StrategyType | undefined) ?? "missing";
 }
 
-function verifyRepo(
+function detectRepo(
   repo: string,
   repoThemes: ThemeEntry[],
-  overrides: OverridesFile,
+  sources: SourcesFile,
   opts: CliOptions,
   hintsMap: Map<string, StrategyType>
-): VerificationRow {
+): DetectionRow {
   try {
     const readme = fetchReadme(repo, opts);
     let det = detectFromText(readme);
@@ -430,7 +410,7 @@ function verifyRepo(
 
       if (
         (det.detected === "unknown" && src.detected) ||
-        (det.confidence < 0.55 && src.detected && src.detected !== "unknown")
+        (det.confidence < 0.9 && src.detected && src.detected !== "unknown")
       ) {
         det = {
           detected: src.detected ?? det.detected,
@@ -443,7 +423,6 @@ function verifyRepo(
       }
     }
 
-    // Apply manual hint if available
     if (hintsMap.has(repo)) {
       det = {
         detected: hintsMap.get(repo)!,
@@ -453,8 +432,8 @@ function verifyRepo(
       };
     }
 
-    const current = findCurrentStrategyFromOverrides(repo, overrides);
-    const status: VerificationRow["status"] =
+    const current = findCurrentStrategy(repo, sources);
+    const status: DetectionRow["status"] =
       current === "missing"
         ? "missing-meta"
         : current === det.detected
@@ -468,18 +447,16 @@ function verifyRepo(
       detectedStrategy: det.detected,
       confidence: Number(det.confidence.toFixed(2)),
       status,
-      needsSourceInspection: det.needsSourceInspection,
       signals: det.signals,
     };
   } catch (err) {
     return {
       repo,
       themeNames: [...new Set(repoThemes.map((t) => t.name))],
-      currentStrategy: findCurrentStrategyFromOverrides(repo, overrides),
+      currentStrategy: findCurrentStrategy(repo, sources),
       detectedStrategy: "unknown",
       confidence: 0,
       status: "error",
-      needsSourceInspection: true,
       signals: [],
       error: err instanceof Error ? err.message : String(err),
     };
@@ -520,74 +497,25 @@ async function limit<T, R>(
   }) as unknown as R[];
 }
 
-function writeMarkdownReport(rows: VerificationRow[], outPath: string): void {
-  const matches = rows.filter((r) => r.status === "match").length;
-  const mismatches = rows.filter((r) => r.status === "mismatch").length;
-  const missing = rows.filter((r) => r.status === "missing-meta").length;
-  const errors = rows.filter((r) => r.status === "error").length;
-
-  const lines: string[] = [];
-  lines.push("# Theme Strategy Verification Report", "");
-  lines.push(`- Total repos checked: **${rows.length}**`);
-  lines.push(`- Matches: **${matches}**`);
-  lines.push(`- Mismatches: **${mismatches}**`);
-  lines.push(`- Missing meta: **${missing}**`);
-  lines.push(`- Errors: **${errors}**`, "");
-
-  const errorRows = rows.filter((r) => r.status === "error");
-  if (errorRows.length) {
-    lines.push("## Errors", "");
-    for (const r of errorRows) {
-      lines.push(`### ${r.repo}`);
-      lines.push(`- Themes: ${r.themeNames.join(", ")}`);
-      lines.push(`- Error: ${r.error || "unknown"}`);
-      lines.push("");
-    }
-  }
-
-  const actionable = rows
-    .filter((r) => r.status === "mismatch" || r.status === "missing-meta")
-    .sort((a, b) => a.confidence - b.confidence);
-
-  if (actionable.length) {
-    lines.push("## Actionable Repos", "");
-    for (const r of actionable) {
-      lines.push(`### ${r.repo}`);
-      lines.push(`- Themes: ${r.themeNames.join(", ")}`);
-      lines.push(`- Current: \`${r.currentStrategy}\``);
-      lines.push(`- Detected: \`${r.detectedStrategy}\``);
-      lines.push(`- Confidence: \`${r.confidence}\``);
-      for (const s of r.signals.slice(0, 5)) {
-        lines.push(`  - ${s.strategy} (+${s.score}): ${s.reason}`);
-      }
-      lines.push("");
-    }
-  }
-
-  ensureDir(path.dirname(outPath));
-  writeFileSync(outPath, lines.join("\n"), "utf-8");
-}
-
-function buildPatchProposal(rows: VerificationRow[]): Array<{ repo: string; strategy: StrategyType; confidence: number }> {
+function buildPatch(rows: DetectionRow[]): Array<{ repo: string; strategy: StrategyType; confidence: number }> {
   return rows
     .filter((r) =>
       (r.status === "mismatch" || r.status === "missing-meta") &&
       r.detectedStrategy !== "unknown" &&
-      r.confidence >= 0.7
+      r.confidence >= 0.9
     )
     .map((r) => ({ repo: r.repo, strategy: r.detectedStrategy, confidence: r.confidence }));
 }
 
-function applyPatchToOverrides(
-  overrides: OverridesFile,
+function applyPatch(
+  sources: SourcesFile,
   patch: Array<{ repo: string; strategy: StrategyType; confidence: number }>,
   themes: ThemeEntry[]
-): OverridesFile {
+): SourcesFile {
   const patchMap = new Map(patch.map((p) => [p.repo, p.strategy]));
-  const existingRepos = new Set(overrides.overrides.filter((o) => o.repo).map((o) => o.repo));
+  const existingRepos = new Set(sources.overrides.filter((o) => o.repo).map((o) => o.repo));
 
-  // Update existing entries
-  const updated = overrides.overrides.map((entry) => {
+  const updated = sources.overrides.map((entry) => {
     if (!entry.repo) return entry;
     const detected = patchMap.get(entry.repo);
     if (!detected) return entry;
@@ -605,12 +533,10 @@ function applyPatchToOverrides(
     };
   });
 
-  // Add new entries for repos not in overrides
   const newEntries: ThemeEntry[] = [];
   for (const p of patch) {
     if (existingRepos.has(p.repo)) continue;
 
-    // Find theme entry for this repo
     const theme = themes.find((t) => t.repo === p.repo);
     if (!theme) continue;
 
@@ -630,33 +556,46 @@ function applyPatchToOverrides(
   allOverrides.sort((a, b) => (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase()));
 
   return {
-    ...overrides,
+    ...sources,
     overrides: allOverrides,
   };
 }
 
-function printErrorSummary(rows: VerificationRow[]): void {
-  const errors = rows.filter((r) => r.status === "error");
-  if (errors.length === 0) return;
+function printSummary(rows: DetectionRow[], patch: DetectionRow[], opts: CliOptions): void {
+  const matches = rows.filter((r) => r.status === "match").length;
+  const mismatches = rows.filter((r) => r.status === "mismatch").length;
+  const missingMeta = rows.filter((r) => r.status === "missing-meta").length;
+  const errors = rows.filter((r) => r.status === "error").length;
 
   console.log("");
-  log("Errors encountered:", "error");
-  for (const r of errors) {
-    logDim(`  ${r.repo}: ${r.error || "unknown error"}`);
-  }
-}
-
-function printMismatchSummary(rows: VerificationRow[], verbose: boolean): void {
-  const mismatches = rows.filter((r) => r.status === "mismatch");
-  if (mismatches.length === 0) return;
-
+  log("Detection complete", "success");
   console.log("");
-  log("Strategy mismatches detected:", "warn");
-  for (const r of mismatches.slice(0, verbose ? undefined : 10)) {
-    logDim(`  ${r.repo}: ${r.currentStrategy} → ${r.detectedStrategy} (conf: ${r.confidence})`);
-  }
-  if (!verbose && mismatches.length > 10) {
-    logDim(`  ... and ${mismatches.length - 10} more (use -v for full list)`);
+  console.log("  Summary:");
+  console.log(`    \x1b[32m✓ Matches:\x1b[0m      ${matches}`);
+  console.log(`    \x1b[33m↻ Mismatches:\x1b[0m   ${mismatches}`);
+  console.log(`    \x1b[34m+ Missing meta:\x1b[0m  ${missingMeta}`);
+  console.log(`    \x1b[31m✗ Errors:\x1b[0m       ${errors}`);
+  console.log(`    \x1b[36m◆ To apply:\x1b[0m     ${patch.length} repos`);
+  console.log("");
+
+  if (opts.report) {
+    const mismatches = rows.filter((r) => r.status === "mismatch");
+    if (mismatches.length > 0) {
+      log("Mismatches:", "warn");
+      for (const r of mismatches) {
+        logDim(`  ${r.repo}: ${r.currentStrategy} → ${r.detectedStrategy} (conf: ${r.confidence})`);
+      }
+      console.log("");
+    }
+
+    const errors = rows.filter((r) => r.status === "error");
+    if (errors.length > 0) {
+      log("Errors:", "error");
+      for (const r of errors) {
+        logDim(`  ${r.repo}: ${r.error || "unknown"}`);
+      }
+      console.log("");
+    }
   }
 }
 
@@ -665,14 +604,12 @@ async function main(): Promise<void> {
   ensureDir(opts.cacheDir);
   ensureDir(opts.outDir);
 
-  console.log("");
   log("Loading theme data...", "info");
 
   const themes = readJsonFile<ThemeEntry[]>(opts.themesPath);
-  const overrides = readJsonFile<OverridesFile>(opts.overridesPath);
+  const sources = readJsonFile<SourcesFile>(opts.sourcesPath);
   
-  // Load manual hints for edge cases
-  const hintsPath = "theme-browser-registry-ts/overrides/hints.json";
+  const hintsPath = "theme-browser-registry-ts/sources/hints.json";
   const hints = existsSync(hintsPath) ? readJsonFile<HintsFile>(hintsPath)?.hints ?? [] : [];
   const hintsMap = new Map(hints.map((h) => [h.repo, h.strategy]));
 
@@ -687,55 +624,29 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
-    console.log("");
-    log(`Verifying single theme: ${opts.theme}`, "info");
-    logDim(`Repo: ${theme.repo}`);
+    log(`Detecting: ${theme.repo}`, "info");
 
     const repoIndex = buildRepoIndex(themes);
-    const row = verifyRepo(theme.repo, repoIndex.get(theme.repo) ?? [theme], overrides, opts, hintsMap);
+    const row = detectRepo(theme.repo, repoIndex.get(theme.repo) ?? [theme], sources, opts, hintsMap);
 
-    console.log("");
     if (row.status === "match") {
-      log(`Strategy confirmed: ${row.detectedStrategy} (confidence: ${row.confidence})`, "success");
+      log(`Strategy: ${row.detectedStrategy} (confidence: ${row.confidence})`, "success");
     } else if (row.status === "mismatch") {
-      log(`Strategy mismatch: ${row.currentStrategy} → ${row.detectedStrategy} (confidence: ${row.confidence})`, "warn");
+      log(`${row.currentStrategy} → ${row.detectedStrategy} (confidence: ${row.confidence})`, "warn");
     } else if (row.status === "missing-meta") {
-      log(`No strategy in overrides. Detected: ${row.detectedStrategy} (confidence: ${row.confidence})`, "info");
+      log(`Detected: ${row.detectedStrategy} (confidence: ${row.confidence})`, "info");
     } else {
       log(`Error: ${row.error}`, "error");
     }
 
-    if (opts.verbose && row.signals.length > 0) {
+    if (opts.report && row.signals.length > 0) {
       console.log("");
-      logDim("Detection signals:");
       for (const s of row.signals) {
-        logDim(`  ${s.strategy} (+${s.score}): ${s.reason}`);
+        logDim(`${s.strategy} (+${s.score}): ${s.reason}`);
       }
     }
 
-    const jsonPath = path.join(opts.outDir, `theme-strategy-${opts.theme}.json`);
-    const mdPath = path.join(opts.outDir, `theme-strategy-${opts.theme}.md`);
-    writeJsonFile(jsonPath, row);
-
-    const lines: string[] = [];
-    lines.push(`# Theme Strategy: ${opts.theme}`, "");
-    lines.push(`- **Repo**: \`${row.repo}\``);
-    lines.push(`- **Current Strategy**: \`${row.currentStrategy}\``);
-    lines.push(`- **Detected Strategy**: \`${row.detectedStrategy}\``);
-    lines.push(`- **Confidence**: ${row.confidence}`);
-    lines.push(`- **Status**: ${row.status}`);
-    if (row.error) lines.push(`- **Error**: ${row.error}`);
-    lines.push("");
-    if (row.signals.length) {
-      lines.push("## Signals", "");
-      for (const s of row.signals) {
-        lines.push(`- **${s.strategy}** (+${s.score}): ${s.reason}`);
-      }
-    }
-    writeFileSync(mdPath, lines.join("\n"), "utf-8");
-
-    console.log("");
-    logDim(`Reports: ${jsonPath}`);
+    writeJsonFile(path.join(opts.outDir, "detection.json"), row);
     return;
   }
 
@@ -745,17 +656,12 @@ async function main(): Promise<void> {
   if (opts.repo) repos = repos.filter((r) => r === opts.repo);
   if (opts.sample && opts.sample > 0) repos = repos.slice(0, opts.sample);
 
-  console.log("");
-  log(`Verifying ${repos.length} repos (${repoIndex.size} unique repos in registry)`, "info");
-  if (opts.sample) {
-    logDim(`Running in sample mode (--sample ${opts.sample})`);
-  }
+  log(`Detecting ${repos.length} repos`, "info");
   console.log("");
 
-  const stats = { cached: 0, fetched: 0 };
   let lastProgressUpdate = 0;
 
-  const rows = await limit(repos, 6, (repo) => verifyRepo(repo, repoIndex.get(repo) ?? [], overrides, opts, hintsMap), (idx, row) => {
+  const rows = await limit(repos, 6, (repo) => detectRepo(repo, repoIndex.get(repo) ?? [], sources, opts, hintsMap), (idx, row) => {
     const now = Date.now();
     if (now - lastProgressUpdate > 50 || idx === repos.length - 1) {
       updateProgress(idx + 1, repos.length, row.repo, row.status);
@@ -767,51 +673,23 @@ async function main(): Promise<void> {
 
   rows.sort((a, b) => a.repo.toLowerCase().localeCompare(b.repo.toLowerCase()));
 
-  const jsonReportPath = path.join(opts.outDir, "theme-strategy-report.json");
-  const mdReportPath = path.join(opts.outDir, "theme-strategy-report.md");
-  writeJsonFile(jsonReportPath, rows);
-  writeMarkdownReport(rows, mdReportPath);
+  writeJsonFile(path.join(opts.outDir, "detection.json"), rows);
 
-  const patch = buildPatchProposal(rows);
+  const patch = buildPatch(rows);
   patch.sort((a, b) => a.repo.toLowerCase().localeCompare(b.repo.toLowerCase()));
-  const patchPath = path.join(opts.outDir, "overrides.patch.json");
-  writeJsonFile(patchPath, patch);
 
-  const matches = rows.filter((r) => r.status === "match").length;
-  const mismatches = rows.filter((r) => r.status === "mismatch").length;
-  const missingMeta = rows.filter((r) => r.status === "missing-meta").length;
-  const errors = rows.filter((r) => r.status === "error").length;
-
-  console.log("");
-  log("Verification complete", "success");
-  console.log("");
-  console.log("  Summary:");
-  console.log(`    \x1b[32m✓ Matches:\x1b[0m      ${matches}`);
-  console.log(`    \x1b[33m↻ Mismatches:\x1b[0m   ${mismatches}`);
-  console.log(`    \x1b[34m+ Missing meta:\x1b[0m  ${missingMeta}`);
-  console.log(`    \x1b[31m✗ Errors:\x1b[0m       ${errors}`);
-  console.log(`    \x1b[36m◆ Patch ready:\x1b[0m   ${patch.length} repos`);
-  console.log("");
-
-  printMismatchSummary(rows, opts.verbose);
-  printErrorSummary(rows);
+  printSummary(rows, rows.filter(r => patch.some(p => p.repo === r.repo)), opts);
 
   if (opts.apply) {
-    console.log("");
-    log(`Applying ${patch.length} strategy updates to overrides.json...`, "info");
-    const nextOverrides = applyPatchToOverrides(overrides, patch, themes);
-    writeJsonFile(opts.overridesPath, nextOverrides);
-    log(`Updated ${opts.overridesPath}`, "success");
+    log(`Applying ${patch.length} strategy updates...`, "info");
+    const nextSources = applyPatch(sources, patch, themes);
+    writeJsonFile(opts.sourcesPath, nextSources);
+    log(`Updated ${opts.sourcesPath}`, "success");
   } else if (patch.length > 0) {
-    console.log("");
-    log(`Ready to apply changes? Run with --apply to update overrides.json`, "info");
+    log(`Run with --apply to update sources`, "info");
   }
 
-  console.log("");
-  logDim(`Reports saved to ${opts.outDir}/`);
-  logDim(`  - theme-strategy-report.json`);
-  logDim(`  - theme-strategy-report.md`);
-  logDim(`  - overrides.patch.json`);
+  logDim(`Report: ${opts.outDir}/detection.json`);
 }
 
 main().catch((err) => {

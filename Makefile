@@ -5,6 +5,7 @@ SHELL := /bin/bash
 ROOT := $(CURDIR)
 
 .PHONY: all help status build validate verify clean \
+        sync-themes detect-strategies build-overrides \
         plugin-test plugin-verify plugin-lint \
         registry-sync registry-watch registry-publish registry-export registry-test
 
@@ -15,6 +16,11 @@ help:
 	@echo ""
 	@echo "Build & Generate:"
 	@echo "  make build              Generate registry.json from themes.json"
+	@echo ""
+	@echo "Theme Detection:"
+	@echo "  make sync-themes        Sync themes from GitHub"
+	@echo "  make detect-strategies  Detect loading strategies (dry-run)"
+	@echo "  make build-overrides    Merge sources/*.json → overrides.json"
 	@echo ""
 	@echo "Validation:"
 	@echo "  make validate           Validate registry completeness"
@@ -53,6 +59,18 @@ validate-lua:
 	@zx scripts/validate/lua-loaders.mjs
 
 verify: build validate plugin-verify
+
+sync-themes:
+	@cd theme-browser-registry-ts && npm run sync
+
+detect-strategies:
+	@npx tsx scripts/detect-strategies.ts
+
+detect-strategies-apply:
+	@npx tsx scripts/detect-strategies.ts --apply
+
+build-overrides:
+	@npx tsx scripts/build-overrides.ts
 
 plugin-test:
 	@$(MAKE) -C theme-browser.nvim test
