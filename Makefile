@@ -5,7 +5,7 @@ SHELL := /bin/bash
 ROOT := $(CURDIR)
 
 .PHONY: all help status clean \
-        sync detect merge build pipeline publish \
+        sync detect merge build pipeline publish install update-bundled \
         validate validate-lua \
         test test-plugin verify
 
@@ -30,6 +30,7 @@ help:
 	@echo ""
 	@echo "  make pipeline    Run all steps in sequence"
 	@echo "  make publish     Push to registry repo (triggers release)"
+	@echo "  make install     Copy top themes to plugin"
 	@echo ""
 	@echo "Validation:"
 	@echo "  make validate       Validate registry completeness"
@@ -62,6 +63,13 @@ merge:
 
 build:
 	@node scripts/04-generate-themes.mjs
+
+install:
+	@node scripts/05-install-themes.mjs
+
+update-bundled:
+	curl -sL -o theme-browser.nvim/lua/theme-browser/data/themes-top-50.json \
+		https://github.com/raulcorreia7/theme-browser-registry/releases/latest/download/themes-top-50.json
 
 validate:
 	@node scripts/validate/registry.mjs

@@ -14,6 +14,7 @@
     "merge": "npx tsx scripts/03-merge-sources.ts",
     "build": "node scripts/04-generate-themes.mjs",
     "pipeline": "npm run sync && npm run detect && npm run merge && npm run build",
+    "install:plugin": "node scripts/05-install-themes.mjs",
     "validate": "node scripts/validate/registry.mjs",
     "validate:lua": "zx scripts/validate/lua-loaders.mjs",
     "verify": "npm run build && npm run validate",

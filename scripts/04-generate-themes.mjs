@@ -130,9 +130,10 @@ function generate() {
   const builtinThemes = loadBuiltinThemes(overrides);
   const builtinNames = new Set(builtinThemes.map((t) => t.name.toLowerCase()));
 
-  const seen = new Set();
-  const curated = [];
-  let skipped = { invalid: 0, duplicate: 0 };
+  // First pass: deduplicate by name, keeping the best theme
+  const themesByName = new Map();
+  const duplicates = [];
+  let skippedInvalid = 0;
 
   for (const theme of themes) {
     if (!theme.name) continue;
@@ -140,15 +141,70 @@ function generate() {
     const nameLower = theme.name.toLowerCase();
 
     if (!isValidThemeName(theme.name)) {
-      skipped.invalid++;
+      skippedInvalid++;
       continue;
     }
 
-    if (seen.has(nameLower)) {
-      skipped.duplicate++;
-      continue;
+    const existing = themesByName.get(nameLower);
+    if (existing) {
+      // Compare: prefer Neovim themes, then higher stars, then more variants
+      const isNeovimTheme = (repo) => repo && (repo.includes('.nvim') || repo.includes('neovim'));
+      
+      const existingIsNeovim = isNeovimTheme(existing.repo);
+      const newIsNeovim = isNeovimTheme(theme.repo);
+      const existingStars = existing.stars || 0;
+      const existingVariants = existing.variants?.length || 0;
+      const newStars = theme.stars || 0;
+      const newVariants = theme.variants?.length || 0;
+      
+      let newIsBetter = false;
+      let reason = '';
+      
+      if (newIsNeovim && !existingIsNeovim) {
+        newIsBetter = true;
+        reason = 'Neovim theme preferred';
+      } else if (!newIsNeovim && existingIsNeovim) {
+        newIsBetter = false;
+        reason = 'Neovim theme preferred';
+      } else if (newStars > existingStars) {
+        newIsBetter = true;
+        reason = `${newStars} > ${existingStars} stars`;
+      } else if (newStars < existingStars) {
+        newIsBetter = false;
+        reason = `${existingStars} > ${newStars} stars`;
+      } else if (newVariants > existingVariants) {
+        newIsBetter = true;
+        reason = `${newVariants} > ${existingVariants} variants`;
+      } else {
+        newIsBetter = false;
+        reason = `${existingVariants} > ${newVariants} variants`;
+      }
+      
+      if (newIsBetter) {
+        duplicates.push({ 
+          name: theme.name, 
+          replaced: existing.repo, 
+          with: theme.repo,
+          reason: reason
+        });
+        themesByName.set(nameLower, theme);
+      } else {
+        duplicates.push({ 
+          name: theme.name, 
+          kept: existing.repo, 
+          skipped: theme.repo,
+          reason: reason
+        });
+      }
+    } else {
+      themesByName.set(nameLower, theme);
     }
-    seen.add(nameLower);
+  }
+
+  const curated = [];
+
+  for (const theme of themesByName.values()) {
+    const nameLower = theme.name.toLowerCase();
 
     const override = theme.repo ? overridesMap.get(theme.repo) : null;
 
@@ -223,8 +279,20 @@ function generate() {
   }
 
   logDim(`  ${builtinThemes.length} builtin themes`);
-  if (skipped.invalid > 0) logDim(`  ${skipped.invalid} skipped (invalid names)`);
-  if (skipped.duplicate > 0) logDim(`  ${skipped.duplicate} skipped (duplicates)`);
+  if (skippedInvalid > 0) logDim(`  ${skippedInvalid} skipped (invalid names)`);
+  if (duplicates.length > 0) {
+    logDim(`  ${duplicates.length} duplicates resolved (kept highest stars/variants)`);
+    for (const dup of duplicates.slice(0, 5)) {
+      if (dup.kept) {
+        logDim(`    ${dup.name}: kept ${dup.kept} (${dup.reason})`);
+      } else {
+        logDim(`    ${dup.name}: replaced ${dup.replaced} with ${dup.with} (${dup.reason})`);
+      }
+    }
+    if (duplicates.length > 5) {
+      logDim(`    ... and ${duplicates.length - 5} more`);
+    }
+  }
 
   writeFileSync(output, JSON.stringify(curated, null, 2) + "\n", "utf-8");
 

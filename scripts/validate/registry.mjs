@@ -69,7 +69,11 @@ function validate() {
       strategyCounts[strategy]++;
     }
 
-    const requiredFields = ['name', 'repo', 'colorscheme'];
+    // Builtin themes don't need a repo field
+    const requiredFields = ['name', 'colorscheme'];
+    if (!theme.builtin) {
+      requiredFields.push('repo');
+    }
     const missing = requiredFields.filter(f => !theme[f]);
     if (missing.length > 0) {
       incompleteThemes.push({
@@ -98,12 +102,17 @@ function validate() {
     }
   });
 
-  const requiredStrategies = ['colorscheme', 'setup', 'load', 'file'];
+  const requiredStrategies = ['colorscheme', 'setup', 'load'];
   requiredStrategies.forEach(s => {
     if (strategyCounts[s] < 5) {
       errors.push(`Strategy "${s}" has only ${strategyCounts[s]} themes (need at least 5)`);
     }
   });
+  
+  // File strategy is optional
+  if (strategyCounts.file === 0) {
+    warnings.push('No file strategy themes (optional)');
+  }
 
   if (modeCounts.dark === 0) {
     errors.push('No dark mode themes found');

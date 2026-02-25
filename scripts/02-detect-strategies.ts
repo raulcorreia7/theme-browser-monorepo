@@ -14,6 +14,7 @@
  *   -a, --apply           Apply changes to sources
  *   -v, --verbose         Show detailed output
  *   --no-cache            Disable cache
+ *   --db-cache <path>     Use SQLite database cache (default: theme-browser-registry-ts/.cache/registry.db)
  *   -h, --help            Show help
  */
 import { parseArgs } from "node:util";
@@ -22,6 +23,15 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { resolve } from "node:path";
+
+// Import RepoCache if available (for database caching)
+let RepoCache: any;
+try {
+  const cacheModule = await import("../theme-browser-registry-ts/dist/providers/cache.js");
+  RepoCache = cacheModule.RepoCache;
+} catch {
+  // Database cache not available, will use file-based cache
+}
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -114,9 +124,39 @@ type CliOptions = {
   apply: boolean;
   verbose: boolean;
   noCache: boolean;
+  dbCache?: string;
 };
 
 type LogLevel = "info" | "success" | "warn" | "error" | "dim";
+
+type ThemeMode = "dark" | "light";
+
+type VariantModeResult = {
+  name: string;
+  detectedMode?: ThemeMode;
+  confidence: number;
+  source: "pattern" | "readme" | "hint" | "unknown";
+  reason?: string;
+};
+
+type VariantHint = {
+  repo: string;
+  variantModes: Record<string, ThemeMode>;
+  reason?: string;
+};
+
+type ExtendedHint = Hint & {
+  variantModes?: Record<string, ThemeMode>;
+};
+
+type ExtendedDetectionRow = DetectionRow & {
+  variants?: {
+    total: number;
+    withMode: number;
+    detected: VariantModeResult[];
+    coverage: number;
+  };
+};
 
 let progressLine = "";
 
@@ -166,6 +206,7 @@ function parseCliArgs(): CliOptions {
       sources: { type: "string", short: "s", default: "theme-browser-registry-ts/sources" },
       output: { type: "string", short: "o", default: "reports" },
       cache: { type: "string", default: ".cache/theme-verifier" },
+      "db-cache": { type: "string", default: "theme-browser-registry-ts/.cache/registry.db" },
       sample: { type: "string", short: "n" },
       repo: { type: "string", short: "r" },
       theme: { type: "string", short: "t" },
@@ -187,6 +228,7 @@ function parseCliArgs(): CliOptions {
     sources: resolve(ROOT, values.sources),
     output: resolve(ROOT, values.output),
     cache: resolve(ROOT, values.cache),
+    dbCache: values["db-cache"] ? resolve(ROOT, values["db-cache"]) : undefined,
     sample: values.sample ? Number(values.sample) : undefined,
     repo: values.repo,
     theme: values.theme,
@@ -222,20 +264,97 @@ function runGhJson(args: string[]): unknown {
   return JSON.parse(out);
 }
 
-function fetchReadme(repo: string, opts: CliOptions): string {
+// Global database cache instance
+let dbCacheInstance: any = null;
+let dbCachePromise: Promise<any> | null = null;
+
+async function getDbCache(opts: CliOptions): Promise<any> {
+  if (dbCacheInstance) return dbCacheInstance;
+  if (dbCachePromise) return dbCachePromise;
+  if (!RepoCache || !opts.dbCache) return null;
+  
+  dbCachePromise = new Promise((resolve) => {
+    try {
+      dbCacheInstance = new RepoCache(opts.dbCache);
+      resolve(dbCacheInstance);
+    } catch (error) {
+      log(`Warning: Failed to open database cache: ${error}`, "warn");
+      resolve(null);
+    }
+  });
+  
+  return dbCachePromise;
+}
+
+async function fetchReadmeAsync(repo: string, opts: CliOptions): Promise<string> {
+  // Try database cache first if available
+  const db = await getDbCache(opts);
+  if (db && !opts.noCache) {
+    try {
+      const cached = await db.readReadme(repo);
+      if (cached) {
+        return cached.content;
+      }
+    } catch {
+      // Fall through to file cache
+    }
+  }
+
+  // Try file cache
   const cpath = cachePath(opts.cache, "readme", repo, "md");
   if (!opts.noCache && existsSync(cpath)) {
     return readFileSync(cpath, "utf-8");
   }
 
+  // Fetch from GitHub
   const data = runGhJson([`repos/${repo}/readme`]) as { content?: string; encoding?: string };
   if (!data?.content) throw new Error("README content missing");
 
   const readme = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf-8");
+  
+  // Cache to file
   if (!opts.noCache) {
     ensureDir(path.dirname(cpath));
     writeFileSync(cpath, readme, "utf-8");
   }
+  
+  return readme;
+}
+
+function fetchReadme(repo: string, opts: CliOptions): string {
+  // Synchronous wrapper - try file cache first, then database (blocking)
+  const cpath = cachePath(opts.cache, "readme", repo, "md");
+  if (!opts.noCache && existsSync(cpath)) {
+    return readFileSync(cpath, "utf-8");
+  }
+  
+  // Try database cache synchronously using SQLite
+  if (RepoCache && opts.dbCache && !opts.noCache) {
+    try {
+      const Database = require("better-sqlite3");
+      const db = new Database(opts.dbCache, { readonly: true, fileMustExist: true });
+      const row = db.prepare("SELECT readme_content FROM repo_cache WHERE repo = ? AND readme_content IS NOT NULL").get(repo);
+      db.close();
+      if (row && row.readme_content) {
+        return row.readme_content;
+      }
+    } catch {
+      // Fall through to GitHub fetch
+    }
+  }
+
+  // Fetch from GitHub
+  const data = runGhJson([`repos/${repo}/readme`]) as { content?: string; encoding?: string };
+  if (!data?.content) throw new Error("README content missing");
+
+  const readme = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf-8");
+  
+  // Cache to file
+  if (!opts.noCache) {
+    ensureDir(path.dirname(cpath));
+    writeFileSync(cpath, readme, "utf-8");
+  }
+  
   return readme;
 }
 
@@ -383,6 +502,146 @@ function inspectSource(repo: string, opts: CliOptions): Partial<DetectionResult>
   };
 }
 
+// =============================================================================
+// Variant Mode Detection
+// =============================================================================
+
+const DARK_PATTERNS = [
+  /dark$/i,
+  /night$/i,
+  /moon$/i,
+  /storm$/i,
+  /mocha$/i,
+  /frappe$/i,
+  /macchiato$/i,
+  /deep$/i,
+  /black$/i,
+  /shadow$/i,
+  /midnight$/i,
+  /abyss$/i,
+  /void$/i,
+  /dusk$/i,
+  /burned$/i,
+  /dim$/i,
+  /cool$/i,
+  /warm$/i,
+];
+
+const LIGHT_PATTERNS = [
+  /light$/i,
+  /day$/i,
+  /sun$/i,
+  /latte$/i,
+  /bright$/i,
+  /white$/i,
+  /paper$/i,
+  /cream$/i,
+  /morning$/i,
+  /dawn$/i,
+  /clear$/i,
+  /ivory$/i,
+  /operandi$/i,
+  /written$/i,
+];
+
+// Special patterns for base16 scheme
+const BASE16_LIGHT_PATTERN = /^base16-.+-light$/i;
+const BASE16_DARK_PATTERN = /^base16-(?!.*-light$).+$/i;
+
+function detectVariantModeFromName(variantName: string): ThemeMode | undefined {
+  const lower = variantName.toLowerCase();
+
+  // Special case: base16-*-light pattern (check first)
+  if (BASE16_LIGHT_PATTERN.test(variantName)) {
+    return "light";
+  }
+
+  // Special case: base16-* (without -light suffix) = dark
+  if (BASE16_DARK_PATTERN.test(variantName)) {
+    return "dark";
+  }
+
+  // Check light patterns first (more specific)
+  for (const pattern of LIGHT_PATTERNS) {
+    if (pattern.test(lower)) {
+      return "light";
+    }
+  }
+
+  // Check dark patterns
+  for (const pattern of DARK_PATTERNS) {
+    if (pattern.test(lower)) {
+      return "dark";
+    }
+  }
+
+  return undefined;
+}
+
+function detectVariantModesFromNames(variants: ThemeEntry["variants"]): VariantModeResult[] {
+  if (!variants || variants.length === 0) {
+    return [];
+  }
+
+  return variants.map((variant) => {
+    const mode = detectVariantModeFromName(variant.name);
+    if (mode) {
+      return {
+        name: variant.name,
+        detectedMode: mode,
+        confidence: 0.9,
+        source: "pattern" as const,
+        reason: `Name matches ${mode} pattern`,
+      };
+    }
+    return {
+      name: variant.name,
+      confidence: 0,
+      source: "unknown" as const,
+    };
+  });
+}
+
+function applyVariantHints(
+  results: VariantModeResult[],
+  hints: Record<string, ThemeMode>
+): VariantModeResult[] {
+  return results.map((result) => {
+    if (hints[result.name]) {
+      return {
+        ...result,
+        detectedMode: hints[result.name],
+        confidence: 1.0,
+        source: "hint",
+        reason: "Manual hint override",
+      };
+    }
+    return result;
+  });
+}
+
+function loadVariantHints(sourcesDir: string): Map<string, Record<string, ThemeMode>> {
+  const hintsPath = path.join(sourcesDir, "hints.json");
+  if (!existsSync(hintsPath)) {
+    return new Map();
+  }
+
+  try {
+    const data = JSON.parse(readFileSync(hintsPath, "utf-8")) as { hints: ExtendedHint[] };
+    const hintMap = new Map<string, Record<string, ThemeMode>>();
+
+    for (const hint of data.hints) {
+      if (hint.repo && hint.variantModes) {
+        hintMap.set(hint.repo, hint.variantModes);
+      }
+    }
+
+    return hintMap;
+  } catch {
+    return new Map();
+  }
+}
+
 function buildRepoIndex(themes: ThemeEntry[]): Map<string, ThemeEntry[]> {
   const map = new Map<string, ThemeEntry[]>();
   for (const t of themes) {
@@ -408,8 +667,9 @@ function detectRepo(
   repoThemes: ThemeEntry[],
   sources: SourcesFile,
   opts: CliOptions,
-  hintsMap: Map<string, StrategyType>
-): DetectionRow {
+  hintsMap: Map<string, StrategyType>,
+  variantHintsMap: Map<string, Record<string, ThemeMode>>
+): ExtendedDetectionRow {
   try {
     const readme = fetchReadme(repo, opts);
     let det = detectFromText(readme);
@@ -450,6 +710,25 @@ function detectRepo(
           ? "match"
           : "mismatch";
 
+    // Detect variant modes
+    const allVariants = repoThemes.flatMap((t) => t.variants ?? []);
+    let variantResults: VariantModeResult[] = [];
+    let variantCoverage = 0;
+
+    if (allVariants.length > 0) {
+      // Detect from names
+      variantResults = detectVariantModesFromNames(allVariants);
+
+      // Apply hints
+      if (variantHintsMap.has(repo)) {
+        variantResults = applyVariantHints(variantResults, variantHintsMap.get(repo)!);
+      }
+
+      // Calculate coverage
+      const withMode = variantResults.filter((r) => r.detectedMode).length;
+      variantCoverage = Math.round((withMode / allVariants.length) * 100);
+    }
+
     return {
       repo,
       themeNames: [...new Set(repoThemes.map((t) => t.name))],
@@ -458,6 +737,12 @@ function detectRepo(
       confidence: Number(det.confidence.toFixed(2)),
       status,
       signals: det.signals,
+      variants: allVariants.length > 0 ? {
+        total: allVariants.length,
+        withMode: variantResults.filter((r) => r.detectedMode).length,
+        detected: variantResults,
+        coverage: variantCoverage,
+      } : undefined,
     };
   } catch (err) {
     return {
@@ -571,7 +856,7 @@ function applyPatch(
   };
 }
 
-function printSummary(rows: DetectionRow[], patchRows: DetectionRow[], opts: CliOptions): void {
+function printSummary(rows: ExtendedDetectionRow[], patchRows: ExtendedDetectionRow[], opts: CliOptions): void {
   const matches = rows.filter((r) => r.status === "match").length;
   const mismatches = rows.filter((r) => r.status === "mismatch").length;
   const missingMeta = rows.filter((r) => r.status === "missing-meta").length;
@@ -607,6 +892,81 @@ function printSummary(rows: DetectionRow[], patchRows: DetectionRow[], opts: Cli
       console.log("");
     }
   }
+
+  // Print variant summary if any variants were detected
+  const reposWithVariants = rows.filter((r) => r.variants && r.variants.total > 0);
+  if (reposWithVariants.length > 0) {
+    console.log("");
+    log("Variant Mode Coverage:", "info");
+
+    const totalVariants = reposWithVariants.reduce((sum, r) => sum + (r.variants?.total || 0), 0);
+    const withMode = reposWithVariants.reduce((sum, r) => sum + (r.variants?.withMode || 0), 0);
+    const coverage = totalVariants > 0 ? Math.round((withMode / totalVariants) * 100) : 0;
+
+    console.log(`  Total variants: ${totalVariants}`);
+    console.log(`  With mode: ${withMode} (${coverage}%)`);
+    console.log(`  Need detection: ${totalVariants - withMode}`);
+    console.log("");
+
+    // Show repos with low coverage
+    const lowCoverage = reposWithVariants
+      .filter((r) => r.variants && r.variants.coverage < 50 && r.variants.total > 0)
+      .sort((a, b) => (b.variants?.total || 0) - (a.variants?.total || 0))
+      .slice(0, 10);
+
+    if (lowCoverage.length > 0) {
+      log("Repos needing attention:", "warn");
+      for (const r of lowCoverage) {
+        const v = r.variants!;
+        console.log(`  ${r.repo}: ${v.withMode}/${v.total} (${v.coverage}%)`);
+      }
+      console.log("");
+    }
+  }
+}
+
+function generateVariantCoverageReport(rows: ExtendedDetectionRow[]): object {
+  const reposWithVariants = rows.filter((r) => r.variants && r.variants.total > 0);
+
+  const totalVariants = reposWithVariants.reduce((sum, r) => sum + (r.variants?.total || 0), 0);
+  const withMode = reposWithVariants.reduce((sum, r) => sum + (r.variants?.withMode || 0), 0);
+
+  const bySource = {
+    pattern: 0,
+    hint: 0,
+    readme: 0,
+    unknown: 0,
+  };
+
+  for (const row of reposWithVariants) {
+    for (const v of row.variants?.detected || []) {
+      bySource[v.source]++;
+    }
+  }
+
+  const reposNeedingAttention = reposWithVariants
+    .filter((r) => r.variants && r.variants.coverage < 100)
+    .map((r) => ({
+      repo: r.repo,
+      total: r.variants!.total,
+      withMode: r.variants!.withMode,
+      coverage: r.variants!.coverage,
+      unknownVariants: r.variants!.detected.filter((v) => !v.detectedMode).map((v) => v.name),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return {
+    generated_at: new Date().toISOString(),
+    summary: {
+      total_repos_with_variants: reposWithVariants.length,
+      total_variants: totalVariants,
+      with_mode: withMode,
+      need_detection: totalVariants - withMode,
+      coverage_percent: totalVariants > 0 ? Math.round((withMode / totalVariants) * 100) : 0,
+    },
+    by_source: bySource,
+    repos_needing_attention: reposNeedingAttention.slice(0, 50),
+  };
 }
 
 function loadSources(sourcesDir: string): SourcesFile {
@@ -683,6 +1043,7 @@ async function main(): Promise<void> {
   const hintsPath = path.join(opts.sources, "hints.json");
   const hints = existsSync(hintsPath) ? readJsonFile<HintsFile>(hintsPath)?.hints ?? [] : [];
   const hintsMap = new Map(hints.map((h) => [h.repo, h.strategy]));
+  const variantHintsMap = loadVariantHints(opts.sources);
 
   if (opts.theme) {
     const theme = findThemeByName(themes, opts.theme);
@@ -698,7 +1059,7 @@ async function main(): Promise<void> {
     log(`Detecting: ${theme.repo}`, "info");
 
     const repoIndex = buildRepoIndex(themes);
-    const row = detectRepo(theme.repo, repoIndex.get(theme.repo) ?? [theme], sources, opts, hintsMap);
+    const row = detectRepo(theme.repo, repoIndex.get(theme.repo) ?? [theme], sources, opts, hintsMap, variantHintsMap);
 
     if (row.status === "match") {
       log(`Strategy: ${row.detectedStrategy} (confidence: ${row.confidence})`, "success");
@@ -722,7 +1083,11 @@ async function main(): Promise<void> {
   }
 
   const repoIndex = buildRepoIndex(themes);
-  let repos = [...repoIndex.keys()].sort();
+  
+  // Excluded repos (collections, not actual themes)
+  const excludedRepos = new Set(["veekram/vim"]);
+  
+  let repos = [...repoIndex.keys()].filter((r) => !excludedRepos.has(r)).sort();
 
   if (opts.repo) repos = repos.filter((r) => r === opts.repo);
   if (opts.sample && opts.sample > 0) repos = repos.slice(0, opts.sample);
@@ -732,7 +1097,7 @@ async function main(): Promise<void> {
 
   let lastProgressUpdate = 0;
 
-  const rows = await limit(repos, 6, (repo) => detectRepo(repo, repoIndex.get(repo) ?? [], sources, opts, hintsMap), (idx, row) => {
+  const rows = await limit(repos, 6, (repo) => detectRepo(repo, repoIndex.get(repo) ?? [], sources, opts, hintsMap, variantHintsMap), (idx, row) => {
     const now = Date.now();
     if (now - lastProgressUpdate > 50 || idx === repos.length - 1) {
       updateProgress(idx + 1, repos.length, row.repo, row.status);
@@ -761,6 +1126,11 @@ async function main(): Promise<void> {
   }
 
   logDim(`Report: ${opts.output}/detection.json`);
+
+  // Generate variant coverage report
+  const variantReport = generateVariantCoverageReport(rows);
+  writeJsonFile(path.join(opts.output, "variant-coverage.json"), variantReport);
+  logDim(`Variant report: ${opts.output}/variant-coverage.json`);
 }
 
 main().catch((err) => {

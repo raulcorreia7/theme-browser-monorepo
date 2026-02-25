@@ -22,13 +22,17 @@ theme-browser-monorepo/
 | Command | Description |
 |---------|-------------|
 | `make status` | Show git status for all repos |
-| `make plugin-verify` | Run plugin lint + tests |
-| `make registry-sync` | Sync themes once |
-| `make registry-watch` | Sync themes continuously |
-| `make registry-publish` | Sync and push to git |
-| `make registry-export` | Export database to JSON |
-| `make registry-test` | Run registry tests |
-| `make registry-clean` | Clean registry artifacts |
+| `make sync` | Step 01: Sync themes from GitHub |
+| `make detect` | Step 02: Detect loading strategies |
+| `make merge` | Step 03: Merge sources |
+| `make build` | Step 04: Generate themes.json |
+| `make pipeline` | Run all steps 01-04 |
+| `make install` | Copy top 50 themes to plugin |
+| `make update-bundled` | Download latest themes-top-50.json to plugin |
+| `make verify` | Build + validate + test plugin |
+| `make test` | Run registry tests |
+| `make test-plugin` | Run plugin tests |
+| `make clean` | Clean all artifacts |
 
 ## Registry Setup
 
