@@ -5,10 +5,10 @@
  * Usage: node scripts/04-generate-themes.mjs [options]
  *
  * Options:
- *   -i, --index <path>    Index file (default: theme-browser-registry-ts/artifacts/index.json)
- *   -o, --overrides <path> Overrides file (default: theme-browser-registry-ts/overrides.json)
- *   -O, --output <path>   Output file (default: theme-browser-registry-ts/artifacts/themes.json)
- *   -h, --help            Show help
+ *   -i, --index <path>      Index file (default: theme-browser-registry-ts/artifacts/index.json)
+ *   -o, --overrides <path>  Overrides file (default: theme-browser-registry-ts/overrides.json)
+ *   -O, --output <path>     Output file (default: theme-browser-registry-ts/artifacts/themes.json)
+ *   -h, --help              Show help
  */
 import { parseArgs } from "node:util";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -17,6 +17,32 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
+
+const COLORS = {
+  reset: "\x1b[0m",
+  dim: "\x1b[90m",
+  blue: "\x1b[34m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+};
+
+function log(msg) {
+  console.log(`${COLORS.blue}→${COLORS.reset} ${msg}`);
+}
+
+function logDim(msg) {
+  console.log(`${COLORS.dim}${msg}${COLORS.reset}`);
+}
+
+function logWarn(msg) {
+  console.log(`${COLORS.yellow}⚠${COLORS.reset} ${msg}`);
+}
+
+function logDone(msg) {
+  console.log("");
+  console.log(`${COLORS.green}✓${COLORS.reset} ${msg}`);
+  console.log("");
+}
 
 const help = `
 04-generate-themes - Generate final themes.json for plugin
@@ -54,6 +80,14 @@ function parseCliArgs() {
   };
 }
 
+function isValidThemeName(name) {
+  if (!name || typeof name !== "string") return false;
+  if (name.startsWith(".")) return false;
+  if (name.length < 2) return false;
+  if (name.length > 64) return false;
+  return /^[a-zA-Z0-9_-]+$/.test(name);
+}
+
 function loadBuiltinThemes(overridesPath) {
   if (!existsSync(overridesPath)) {
     return [];
@@ -87,56 +121,77 @@ function loadOverrides(overridesPath) {
 function generate() {
   const { index, overrides, output } = parseCliArgs();
 
-  console.log("Reading index:", index);
+  log(`Reading ${index}`);
+
   const raw = readFileSync(index, "utf-8");
   const themes = JSON.parse(raw);
 
   const overridesMap = loadOverrides(overrides);
-
-  const curated = themes
-    .filter((t) => t.name)
-    .map((theme) => {
-      const override = theme.repo ? overridesMap.get(theme.repo) : null;
-
-      const entry = {
-        name: theme.name,
-        repo: theme.repo,
-        colorscheme: theme.colorscheme,
-      };
-
-      if (theme.mode) {
-        entry.mode = theme.mode;
-      }
-
-      const strategy = override?.meta?.strategy ?? theme.meta?.strategy;
-      if (strategy) {
-        entry.meta = { strategy };
-      }
-
-      if (theme.variants && theme.variants.length > 0) {
-        entry.variants = theme.variants.map((v) => {
-          const variant = {
-            name: v.name,
-            colorscheme: v.colorscheme,
-          };
-
-          if (v.mode) {
-            variant.mode = v.mode;
-          }
-
-          if (v.meta && v.meta.strategy) {
-            variant.meta = { strategy: v.meta.strategy };
-          }
-
-          return variant;
-        });
-      }
-
-      return entry;
-    });
-
   const builtinThemes = loadBuiltinThemes(overrides);
-  console.log("Found", builtinThemes.length, "builtin themes");
+  const builtinNames = new Set(builtinThemes.map((t) => t.name.toLowerCase()));
+
+  const seen = new Set();
+  const curated = [];
+  let skipped = { invalid: 0, duplicate: 0 };
+
+  for (const theme of themes) {
+    if (!theme.name) continue;
+
+    const nameLower = theme.name.toLowerCase();
+
+    if (!isValidThemeName(theme.name)) {
+      skipped.invalid++;
+      continue;
+    }
+
+    if (seen.has(nameLower)) {
+      skipped.duplicate++;
+      continue;
+    }
+    seen.add(nameLower);
+
+    const override = theme.repo ? overridesMap.get(theme.repo) : null;
+
+    const entry = {
+      name: theme.name,
+      repo: theme.repo,
+      colorscheme: theme.colorscheme,
+    };
+
+    if (builtinNames.has(nameLower)) {
+      entry.conflicts_with_builtin = true;
+    }
+
+    if (theme.mode) {
+      entry.mode = theme.mode;
+    }
+
+    const strategy = override?.meta?.strategy ?? theme.meta?.strategy;
+    if (strategy) {
+      entry.meta = { strategy };
+    }
+
+    if (theme.variants && theme.variants.length > 0) {
+      entry.variants = theme.variants.map((v) => {
+        const variant = {
+          name: v.name,
+          colorscheme: v.colorscheme,
+        };
+
+        if (v.mode) {
+          variant.mode = v.mode;
+        }
+
+        if (v.meta && v.meta.strategy) {
+          variant.meta = { strategy: v.meta.strategy };
+        }
+
+        return variant;
+      });
+    }
+
+    curated.push(entry);
+  }
 
   for (const builtin of builtinThemes) {
     const entry = {
@@ -160,12 +215,13 @@ function generate() {
     curated.push(entry);
   }
 
-  console.log(`Generated ${curated.length} themes (${builtinThemes.length} builtin)`);
-  console.log("Writing to:", output);
+  logDim(`  ${builtinThemes.length} builtin themes`);
+  if (skipped.invalid > 0) logDim(`  ${skipped.invalid} skipped (invalid names)`);
+  if (skipped.duplicate > 0) logDim(`  ${skipped.duplicate} skipped (duplicates)`);
 
   writeFileSync(output, JSON.stringify(curated, null, 2) + "\n", "utf-8");
 
-  console.log("Done!");
+  logDone(`Generated ${curated.length} themes → ${output}`);
 }
 
 generate();

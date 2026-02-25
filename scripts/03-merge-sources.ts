@@ -13,6 +13,7 @@ import { parseArgs } from "node:util";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { resolve } from "node:path";
+import { log, logDone } from "./lib/logger.js";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -134,8 +135,7 @@ function merge(): void {
 
   writeJson(output, merged);
 
-  console.log(`Merged ${allThemes.length} themes + ${builtin.length} builtin`);
-  console.log(`Output: ${output}`);
+  logDone(`Merged ${allThemes.length} themes + ${builtin.length} builtin → ${output}`);
 }
 
 merge();
