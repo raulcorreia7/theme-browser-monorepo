@@ -9,17 +9,17 @@
   ],
   "scripts": {
     "sync": "npx tsx scripts/01-sync-index.ts",
+    "detect": "npx tsx scripts/02-detect-strategies.ts --apply",
     "detect:dryrun": "npx tsx scripts/02-detect-strategies.ts",
-    "detect:apply": "npx tsx scripts/02-detect-strategies.ts --apply",
     "merge": "npx tsx scripts/03-merge-sources.ts",
-    "generate": "node scripts/04-generate-themes.mjs",
     "build": "node scripts/04-generate-themes.mjs",
+    "pipeline": "npm run sync && npm run detect && npm run merge && npm run build",
     "validate": "node scripts/validate/registry.mjs",
     "validate:lua": "zx scripts/validate/lua-loaders.mjs",
+    "verify": "npm run build && npm run validate",
     "test": "npm run test -w theme-browser-registry-ts",
     "test:plugin": "make -C theme-browser.nvim test",
-    "verify": "make -C theme-browser.nvim verify",
-    "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts"
+    "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts reports .cache"
   },
   "devDependencies": {
     "zx": "^8.0.0"

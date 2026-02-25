@@ -4,31 +4,35 @@ SHELL := /bin/bash
 
 ROOT := $(CURDIR)
 
-.PHONY: all help status build validate verify clean \
-        sync detect detect-apply merge generate \
-        plugin-test plugin-verify plugin-lint
+.PHONY: all help status clean \
+        sync detect merge build pipeline \
+        validate validate-lua \
+        test test-plugin verify
 
-all: build validate verify
+all: build validate
+
+pipeline: sync detect merge build
+	@echo "✓ Pipeline complete → artifacts/themes.json"
 
 help:
 	@echo "theme-browser-monorepo"
 	@echo ""
-	@echo "Pipeline:"
-	@echo "  make sync           Sync themes from GitHub (→ artifacts/index.json)"
-	@echo "  make detect-dryrun   Detect strategies (dry-run)"
-	@echo "  make detect-apply    Apply detected strategies to sources/"
-	@echo "  make merge          Merge sources/ → overrides.json"
-	@echo "  make generate       Generate final themes.json"
-	@echo "  make build          Same as generate"
+	@echo "Pipeline (run in order):"
+	@echo "  make sync        01: Sync themes from GitHub → artifacts/index.json"
+	@echo "  make detect      02: Detect strategies → sources/*.json"
+	@echo "  make merge       03: Merge sources → overrides.json"
+	@echo "  make build       04: Generate final themes.json"
+	@echo ""
+	@echo "  make pipeline    Run all steps in sequence"
 	@echo ""
 	@echo "Validation:"
 	@echo "  make validate       Validate registry completeness"
 	@echo "  make validate-lua   Validate Lua loader syntax"
+	@echo "  make verify         Full verification (build + validate + plugin)"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make verify         Run all verifications"
-	@echo "  make plugin-test    Run theme-browser.nvim tests"
-	@echo "  make plugin-verify  Run plugin lint, format check, smoke, and tests"
+	@echo "  make test           Run registry tests"
+	@echo "  make test-plugin    Run plugin tests"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make status         Show git status for all repos"
@@ -44,16 +48,13 @@ status:
 sync:
 	@npx tsx scripts/01-sync-index.ts
 
-detect-dryrun:
-	@npx tsx scripts/02-detect-strategies.ts
-
-detect-apply:
+detect:
 	@npx tsx scripts/02-detect-strategies.ts --apply
 
 merge:
 	@npx tsx scripts/03-merge-sources.ts
 
-generate build:
+build:
 	@node scripts/04-generate-themes.mjs
 
 validate:
@@ -62,16 +63,14 @@ validate:
 validate-lua:
 	@zx scripts/validate/lua-loaders.mjs
 
-verify: build validate plugin-verify
-
-plugin-test:
-	@$(MAKE) -C theme-browser.nvim test
-
-plugin-verify:
+verify: build validate
 	@$(MAKE) -C theme-browser.nvim verify
 
-plugin-lint:
-	@$(MAKE) -C theme-browser.nvim lint
+test:
+	@npm run test -w theme-browser-registry-ts
+
+test-plugin:
+	@$(MAKE) -C theme-browser.nvim test
 
 clean:
 	@rm -rf theme-browser-registry-ts/.state
@@ -80,4 +79,4 @@ clean:
 	@rm -rf theme-browser-registry-ts/coverage
 	@rm -rf reports .cache
 	@$(MAKE) -C theme-browser.nvim clean
-	@echo "Cleaned all artifacts"
+	@echo "✓ Cleaned all artifacts"
