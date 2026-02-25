@@ -12,6 +12,12 @@
     "validate": "node scripts/validate/registry.mjs",
     "validate:lua": "zx scripts/validate/lua-loaders.mjs",
     "verify:strategies": "zx scripts/tools/verify-strategies.mjs",
+    "verify:themes": "npx tsx scripts/verify-themes.ts",
+    "verify:themes:sample": "npx tsx scripts/verify-themes.ts --sample 20 -v",
+    "verify:themes:apply": "npx tsx scripts/verify-themes.ts --apply",
+    "verify:ast": "npx tsx scripts/detect-ast.ts",
+    "overrides:split": "npx tsx scripts/split-overrides.ts",
+    "overrides:merge": "npx tsx scripts/merge-overrides.ts",
     "test": "npm run test -w theme-browser-registry-ts",
     "test:plugin": "make -C theme-browser.nvim test",
     "verify": "make -C theme-browser.nvim verify",
@@ -22,6 +28,7 @@
     "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts"
   },
   "devDependencies": {
+    "@ast-grep/cli": "^0.41.0",
     "zx": "^8.0.0"
   },
   "engines": {
