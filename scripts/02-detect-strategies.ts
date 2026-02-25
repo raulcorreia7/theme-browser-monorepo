@@ -1,8 +1,52 @@
 #!/usr/bin/env node
+/**
+ * 02-detect-strategies.ts - Detect theme loading strategies
+ *
+ * Usage: npx tsx scripts/02-detect-strategies.ts [options]
+ *
+ * Options:
+ *   -i, --index <path>    Index file (default: theme-browser-registry-ts/artifacts/index.json)
+ *   -s, --sources <dir>   Sources directory (default: theme-browser-registry-ts/sources)
+ *   -o, --output <dir>    Output directory (default: reports)
+ *   -n, --sample <n>      Process first N repos only
+ *   -r, --repo <owner/repo>  Process single repo
+ *   -t, --theme <name>    Process by theme name
+ *   -a, --apply           Apply changes to sources
+ *   -v, --verbose         Show detailed output
+ *   --no-cache            Disable cache
+ *   -h, --help            Show help
+ */
+import { parseArgs } from "node:util";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { resolve } from "node:path";
+
+const ROOT = resolve(import.meta.dirname, "..");
+
+const help = `
+02-detect-strategies - Detect theme loading strategies
+
+Usage:
+  02-detect-strategies [options]
+
+Options:
+  -i, --index <path>       Index file (default: theme-browser-registry-ts/artifacts/index.json)
+  -s, --sources <dir>      Sources directory (default: theme-browser-registry-ts/sources)
+  -o, --output <dir>       Output directory (default: reports)
+  --cache <dir>            Cache directory (default: .cache/theme-verifier)
+  -n, --sample <n>         Process first N repos only
+  -r, --repo <owner/repo>  Process single repo
+  -t, --theme <name>       Process by theme name
+  -a, --apply              Apply changes to sources
+  -v, --verbose            Show detailed output
+  --no-cache               Disable cache
+  -h, --help               Show this help
+
+Output:
+  Always writes: reports/detection.json
+`;
 
 type StrategyType = "setup" | "load" | "colorscheme" | "file" | "unknown";
 
@@ -60,26 +104,19 @@ type DetectionRow = {
 };
 
 type CliOptions = {
-  themesPath: string;
-  sourcesPath: string;
+  index: string;
+  sources: string;
+  output: string;
+  cache: string;
   sample?: number;
   repo?: string;
   theme?: string;
   apply: boolean;
-  report: boolean;
-  cacheDir: string;
-  outDir: string;
+  verbose: boolean;
   noCache: boolean;
 };
 
 type LogLevel = "info" | "success" | "warn" | "error" | "dim";
-
-const DEFAULTS = {
-  themesPath: "theme-browser-registry-ts/artifacts/themes.json",
-  sourcesPath: "theme-browser-registry-ts/overrides.json",
-  cacheDir: ".cache/theme-verifier",
-  outDir: "reports",
-};
 
 let progressLine = "";
 
@@ -108,7 +145,7 @@ function updateProgress(current: number, total: number, repo: string, status: st
     error: "\x1b[31m✗\x1b[0m",
   };
   const line = `  [${bar}] ${current}/${total} (${pct}%) ${statusIcon[status] || "?"} ${repo}`;
-  
+
   readline.cursorTo(process.stdout, 0);
   process.stdout.write(line);
   progressLine = line;
@@ -122,68 +159,41 @@ function clearProgress(): void {
   }
 }
 
-function parseArgs(argv: string[]): CliOptions {
-  const opts: CliOptions = {
-    themesPath: DEFAULTS.themesPath,
-    sourcesPath: DEFAULTS.sourcesPath,
-    apply: false,
-    report: false,
-    cacheDir: DEFAULTS.cacheDir,
-    outDir: DEFAULTS.outDir,
-    noCache: false,
-  };
+function parseCliArgs(): CliOptions {
+  const { values } = parseArgs({
+    options: {
+      index: { type: "string", short: "i", default: "theme-browser-registry-ts/artifacts/index.json" },
+      sources: { type: "string", short: "s", default: "theme-browser-registry-ts/sources" },
+      output: { type: "string", short: "o", default: "reports" },
+      cache: { type: "string", default: ".cache/theme-verifier" },
+      sample: { type: "string", short: "n" },
+      repo: { type: "string", short: "r" },
+      theme: { type: "string", short: "t" },
+      apply: { type: "boolean", short: "a", default: false },
+      verbose: { type: "boolean", short: "v", default: false },
+      "no-cache": { type: "boolean", default: false },
+      help: { type: "boolean", short: "h", default: false },
+    },
+    allowPositionals: true,
+  });
 
-  for (let i = 2; i < argv.length; i++) {
-    const a = argv[i];
-    const next = argv[i + 1];
-
-    if (a === "--themes" && next) { opts.themesPath = next; i++; continue; }
-    if (a === "--sources" && next) { opts.sourcesPath = next; i++; continue; }
-    if (a === "--sample" && next) { opts.sample = Number(next); i++; continue; }
-    if (a === "--repo" && next) { opts.repo = next; i++; continue; }
-    if (a === "--theme" && next) { opts.theme = next; i++; continue; }
-    if (a === "--cache-dir" && next) { opts.cacheDir = next; i++; continue; }
-    if (a === "--out-dir" && next) { opts.outDir = next; i++; continue; }
-    if (a === "--apply") { opts.apply = true; continue; }
-    if (a === "--report") { opts.report = true; continue; }
-    if (a === "--no-cache") { opts.noCache = true; continue; }
-    if (a === "--help" || a === "-h") {
-      printHelp();
-      process.exit(0);
-    }
+  if (values.help) {
+    console.log(help);
+    process.exit(0);
   }
 
-  return opts;
-}
-
-function printHelp(): void {
-  console.log(`
-detect-strategies.ts - Detect theme loading strategies
-
-Usage:
-  tsx scripts/detect-strategies.ts [options]
-
-Options:
-  --themes <path>       Path to artifacts/themes.json
-  --sources <path>      Path to overrides.json
-  --sample <n>          Detect first N repos
-  --repo <owner/name>   Detect only one repo
-  --theme <name>        Detect theme by name
-  --apply               Update sources/*.json with detected strategies
-  --report              Show detailed report output
-  --cache-dir <path>    Cache directory
-  --out-dir <path>      Output reports directory
-  --no-cache            Disable cache reads/writes
-  -h, --help            Show help
-
-Output:
-  Always writes: reports/detection.json
-
-Examples:
-  tsx scripts/detect-strategies.ts --sample 20
-  tsx scripts/detect-strategies.ts --repo folke/tokyonight.nvim
-  tsx scripts/detect-strategies.ts --apply
-`);
+  return {
+    index: resolve(ROOT, values.index),
+    sources: resolve(ROOT, values.sources),
+    output: resolve(ROOT, values.output),
+    cache: resolve(ROOT, values.cache),
+    sample: values.sample ? Number(values.sample) : undefined,
+    repo: values.repo,
+    theme: values.theme,
+    apply: values.apply,
+    verbose: values.verbose,
+    noCache: values["no-cache"],
+  };
 }
 
 function ensureDir(dir: string): void {
@@ -213,7 +223,7 @@ function runGhJson(args: string[]): unknown {
 }
 
 function fetchReadme(repo: string, opts: CliOptions): string {
-  const cpath = cachePath(opts.cacheDir, "readme", repo, "md");
+  const cpath = cachePath(opts.cache, "readme", repo, "md");
   if (!opts.noCache && existsSync(cpath)) {
     return readFileSync(cpath, "utf-8");
   }
@@ -230,7 +240,7 @@ function fetchReadme(repo: string, opts: CliOptions): string {
 }
 
 function fetchRepoTree(repo: string, opts: CliOptions): Array<{ path: string; type: string }> {
-  const cpath = cachePath(opts.cacheDir, "tree", repo, "json");
+  const cpath = cachePath(opts.cache, "tree", repo, "json");
   if (!opts.noCache && existsSync(cpath)) {
     return readJsonFile<Array<{ path: string; type: string }>>(cpath);
   }
@@ -561,7 +571,7 @@ function applyPatch(
   };
 }
 
-function printSummary(rows: DetectionRow[], patch: DetectionRow[], opts: CliOptions): void {
+function printSummary(rows: DetectionRow[], patchRows: DetectionRow[], opts: CliOptions): void {
   const matches = rows.filter((r) => r.status === "match").length;
   const mismatches = rows.filter((r) => r.status === "mismatch").length;
   const missingMeta = rows.filter((r) => r.status === "missing-meta").length;
@@ -575,23 +585,23 @@ function printSummary(rows: DetectionRow[], patch: DetectionRow[], opts: CliOpti
   console.log(`    \x1b[33m↻ Mismatches:\x1b[0m   ${mismatches}`);
   console.log(`    \x1b[34m+ Missing meta:\x1b[0m  ${missingMeta}`);
   console.log(`    \x1b[31m✗ Errors:\x1b[0m       ${errors}`);
-  console.log(`    \x1b[36m◆ To apply:\x1b[0m     ${patch.length} repos`);
+  console.log(`    \x1b[36m◆ To apply:\x1b[0m     ${patchRows.length} repos`);
   console.log("");
 
-  if (opts.report) {
-    const mismatches = rows.filter((r) => r.status === "mismatch");
-    if (mismatches.length > 0) {
+  if (opts.verbose) {
+    const mismatchesList = rows.filter((r) => r.status === "mismatch");
+    if (mismatchesList.length > 0) {
       log("Mismatches:", "warn");
-      for (const r of mismatches) {
+      for (const r of mismatchesList) {
         logDim(`  ${r.repo}: ${r.currentStrategy} → ${r.detectedStrategy} (conf: ${r.confidence})`);
       }
       console.log("");
     }
 
-    const errors = rows.filter((r) => r.status === "error");
-    if (errors.length > 0) {
+    const errorsList = rows.filter((r) => r.status === "error");
+    if (errorsList.length > 0) {
       log("Errors:", "error");
-      for (const r of errors) {
+      for (const r of errorsList) {
         logDim(`  ${r.repo}: ${r.error || "unknown"}`);
       }
       console.log("");
@@ -599,17 +609,78 @@ function printSummary(rows: DetectionRow[], patch: DetectionRow[], opts: CliOpti
   }
 }
 
+function loadSources(sourcesDir: string): SourcesFile {
+  const overridesPath = path.join(sourcesDir, "overrides.json");
+  if (existsSync(overridesPath)) {
+    return readJsonFile<SourcesFile>(overridesPath);
+  }
+
+  const allThemes: ThemeEntry[] = [];
+  const builtin: ThemeEntry[] = [];
+
+  const strategyFiles = ["setup.json", "load.json", "colorscheme.json", "builtin.json"];
+
+  for (const file of strategyFiles) {
+    const filePath = path.join(sourcesDir, file);
+    if (!existsSync(filePath)) continue;
+
+    const data = readJsonFile<{ themes: ThemeEntry[]; strategy?: string }>(filePath);
+    if (!data?.themes) continue;
+
+    if (file === "builtin.json") {
+      builtin.push(...data.themes);
+    } else {
+      for (const t of data.themes) {
+        allThemes.push(t);
+      }
+    }
+  }
+
+  return { overrides: allThemes, builtin };
+}
+
+function saveSources(sourcesDir: string, sources: SourcesFile): void {
+  const byStrategy: Record<string, ThemeEntry[]> = {
+    setup: [],
+    load: [],
+    colorscheme: [],
+    builtin: sources.builtin ?? [],
+  };
+
+  for (const t of sources.overrides) {
+    const strategy = t.meta?.strategy?.type ?? "colorscheme";
+    if (byStrategy[strategy]) {
+      byStrategy[strategy].push(t);
+    } else {
+      byStrategy.colorscheme.push(t);
+    }
+  }
+
+  for (const [strategy, themes] of Object.entries(byStrategy)) {
+    if (themes.length === 0) continue;
+
+    const filePath = path.join(sourcesDir, `${strategy}.json`);
+    const existing = existsSync(filePath) ? readJsonFile<{ themes: ThemeEntry[] }>(filePath) : null;
+
+    writeJsonFile(filePath, {
+      strategy,
+      count: themes.length,
+      themes: themes.sort((a, b) => (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase())),
+    });
+  }
+}
+
 async function main(): Promise<void> {
-  const opts = parseArgs(process.argv);
-  ensureDir(opts.cacheDir);
-  ensureDir(opts.outDir);
+  const opts = parseCliArgs();
+  ensureDir(opts.cache);
+  ensureDir(opts.output);
 
   log("Loading theme data...", "info");
 
-  const themes = readJsonFile<ThemeEntry[]>(opts.themesPath);
-  const sources = readJsonFile<SourcesFile>(opts.sourcesPath);
-  
-  const hintsPath = "theme-browser-registry-ts/sources/hints.json";
+  const themes = readJsonFile<ThemeEntry[]>(opts.index);
+  const sources = loadSources(opts.sources);
+
+  const hintsPath = path.join(opts.sources, "hints.json");
   const hints = existsSync(hintsPath) ? readJsonFile<HintsFile>(hintsPath)?.hints ?? [] : [];
   const hintsMap = new Map(hints.map((h) => [h.repo, h.strategy]));
 
@@ -639,14 +710,14 @@ async function main(): Promise<void> {
       log(`Error: ${row.error}`, "error");
     }
 
-    if (opts.report && row.signals.length > 0) {
+    if (opts.verbose && row.signals.length > 0) {
       console.log("");
       for (const s of row.signals) {
         logDim(`${s.strategy} (+${s.score}): ${s.reason}`);
       }
     }
 
-    writeJsonFile(path.join(opts.outDir, "detection.json"), row);
+    writeJsonFile(path.join(opts.output, "detection.json"), row);
     return;
   }
 
@@ -673,7 +744,7 @@ async function main(): Promise<void> {
 
   rows.sort((a, b) => a.repo.toLowerCase().localeCompare(b.repo.toLowerCase()));
 
-  writeJsonFile(path.join(opts.outDir, "detection.json"), rows);
+  writeJsonFile(path.join(opts.output, "detection.json"), rows);
 
   const patch = buildPatch(rows);
   patch.sort((a, b) => a.repo.toLowerCase().localeCompare(b.repo.toLowerCase()));
@@ -683,13 +754,13 @@ async function main(): Promise<void> {
   if (opts.apply) {
     log(`Applying ${patch.length} strategy updates...`, "info");
     const nextSources = applyPatch(sources, patch, themes);
-    writeJsonFile(opts.sourcesPath, nextSources);
-    log(`Updated ${opts.sourcesPath}`, "success");
+    saveSources(opts.sources, nextSources);
+    log(`Updated ${opts.sources}`, "success");
   } else if (patch.length > 0) {
     log(`Run with --apply to update sources`, "info");
   }
 
-  logDim(`Report: ${opts.outDir}/detection.json`);
+  logDim(`Report: ${opts.output}/detection.json`);
 }
 
 main().catch((err) => {

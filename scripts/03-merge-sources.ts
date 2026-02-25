@@ -1,11 +1,32 @@
 #!/usr/bin/env node
 /**
- * Build overrides.json from source files
+ * 03-merge-sources.ts - Merge source files into overrides.json
  *
- * Merges sources/*.json → overrides.json
+ * Usage: npx tsx scripts/03-merge-sources.ts [options]
+ *
+ * Options:
+ *   -s, --sources <dir>   Sources directory (default: theme-browser-registry-ts/sources)
+ *   -o, --output <path>   Output file (default: theme-browser-registry-ts/overrides.json)
+ *   -h, --help            Show help
  */
+import { parseArgs } from "node:util";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import path from "node:path";
+import { resolve } from "node:path";
+
+const ROOT = resolve(import.meta.dirname, "..");
+
+const help = `
+03-merge-sources - Merge source files into overrides.json
+
+Usage:
+  03-merge-sources [options]
+
+Options:
+  -s, --sources <dir>   Sources directory (default: theme-browser-registry-ts/sources)
+  -o, --output <path>   Output file (default: theme-browser-registry-ts/overrides.json)
+  -h, --help            Show this help
+`;
 
 type StrategyType = "setup" | "load" | "colorscheme" | "file" | "unknown";
 
@@ -34,8 +55,26 @@ type HintsFile = {
   hints: Hint[];
 };
 
-const SOURCES_DIR = "theme-browser-registry-ts/sources";
-const OUTPUT_FILE = "theme-browser-registry-ts/overrides.json";
+function parseCliArgs() {
+  const { values } = parseArgs({
+    options: {
+      sources: { type: "string", short: "s", default: "theme-browser-registry-ts/sources" },
+      output: { type: "string", short: "o", default: "theme-browser-registry-ts/overrides.json" },
+      help: { type: "boolean", short: "h", default: false },
+    },
+    allowPositionals: true,
+  });
+
+  if (values.help) {
+    console.log(help);
+    process.exit(0);
+  }
+
+  return {
+    sources: resolve(ROOT, values.sources),
+    output: resolve(ROOT, values.output),
+  };
+}
 
 function readJson<T>(filePath: string): T | null {
   if (!existsSync(filePath)) return null;
@@ -46,16 +85,17 @@ function writeJson(filePath: string, data: unknown): void {
   writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 }
 
-function buildOverrides(): void {
+function merge(): void {
+  const { sources, output } = parseCliArgs();
   const allThemes: ThemeEntry[] = [];
   const builtin: ThemeEntry[] = [];
 
-  const files = readdirSync(SOURCES_DIR).filter((f) => f.endsWith(".json"));
+  const files = readdirSync(sources).filter((f) => f.endsWith(".json"));
 
   for (const file of files) {
     if (file === "hints.json") continue;
 
-    const filePath = path.join(SOURCES_DIR, file);
+    const filePath = path.join(sources, file);
     const data = readJson<StrategyFile | { themes: ThemeEntry[] }>(filePath);
     if (!data) continue;
 
@@ -68,7 +108,7 @@ function buildOverrides(): void {
     }
   }
 
-  const hints = readJson<HintsFile>(path.join(SOURCES_DIR, "hints.json"));
+  const hints = readJson<HintsFile>(path.join(sources, "hints.json"));
   if (hints?.hints) {
     const hintMap = new Map(hints.hints.map((h) => [h.repo, h.strategy]));
     for (const theme of allThemes) {
@@ -92,10 +132,10 @@ function buildOverrides(): void {
     ...(builtin.length > 0 && { builtin }),
   };
 
-  writeJson(OUTPUT_FILE, merged);
+  writeJson(output, merged);
 
-  console.log(`Built ${allThemes.length} themes + ${builtin.length} builtin`);
-  console.log(`Output: ${OUTPUT_FILE}`);
+  console.log(`Merged ${allThemes.length} themes + ${builtin.length} builtin`);
+  console.log(`Output: ${output}`);
 }
 
-buildOverrides();
+merge();

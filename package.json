@@ -8,20 +8,17 @@
     "theme-browser-registry-ts"
   ],
   "scripts": {
-    "build": "node scripts/build/generate-registry.mjs",
+    "sync": "npx tsx scripts/01-sync-index.ts",
+    "detect:dryrun": "npx tsx scripts/02-detect-strategies.ts",
+    "detect:apply": "npx tsx scripts/02-detect-strategies.ts --apply",
+    "merge": "npx tsx scripts/03-merge-sources.ts",
+    "generate": "node scripts/04-generate-themes.mjs",
+    "build": "node scripts/04-generate-themes.mjs",
     "validate": "node scripts/validate/registry.mjs",
     "validate:lua": "zx scripts/validate/lua-loaders.mjs",
-    "sync-themes": "npm run sync -w theme-browser-registry-ts",
-    "detect-strategies": "npx tsx scripts/detect-strategies.ts",
-    "detect-strategies:apply": "npx tsx scripts/detect-strategies.ts --apply",
-    "build-overrides": "npx tsx scripts/build-overrides.ts",
     "test": "npm run test -w theme-browser-registry-ts",
     "test:plugin": "make -C theme-browser.nvim test",
     "verify": "make -C theme-browser.nvim verify",
-    "registry:sync": "npm run sync -w theme-browser-registry-ts",
-    "registry:watch": "npm run watch -w theme-browser-registry-ts",
-    "registry:publish": "npm run publish -w theme-browser-registry-ts",
-    "registry:export": "npm run export -w theme-browser-registry-ts",
     "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts"
   },
   "devDependencies": {

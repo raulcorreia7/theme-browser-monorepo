@@ -6,25 +6,48 @@ Automated theme strategy detection with 100% accuracy on 613 themes.
 
 ```
 theme-browser-registry-ts/
-├── sources/                 # Editable source files
-│   ├── setup.json          # Themes with setup() config
-│   ├── load.json           # Themes with .load() function
-│   ├── colorscheme.json    # Simple colorscheme themes
-│   ├── builtin.json        # Neovim built-in themes
-│   └── hints.json          # Manual overrides for edge cases
-├── excluded.json           # Non-theme repos (dotfiles, configs)
-└── overrides.json          # Generated (do not edit)
+├── artifacts/
+│   ├── index.json         # Raw theme inventory (synced from GitHub)
+│   ├── themes.json        # Final output for plugin consumption
+│   └── manifest.json      # Build metadata
+├── sources/               # Editable source files
+│   ├── setup.json        # Themes with setup() config
+│   ├── load.json         # Themes with .load() function
+│   ├── colorscheme.json  # Simple colorscheme themes
+│   ├── builtin.json      # Neovim built-in themes
+│   └── hints.json        # Manual overrides for edge cases
+├── excluded.json         # Non-theme repos (dotfiles, configs)
+└── overrides.json        # Generated (do not edit)
 ```
 
 ## Workflow
 
 ```bash
-npm run sync-themes              # Sync themes from GitHub
-npm run detect-strategies        # Detect strategies (writes reports/detection.json)
-npm run detect-strategies:apply  # Apply to sources/*.json
-npm run build-overrides          # Merge sources/*.json → overrides.json
-npm run build                    # Build registry for plugin
+make sync           # Sync themes from GitHub → artifacts/index.json
+make detect-dryrun  # Detect strategies → reports/detection.json
+make detect-apply   # Apply to sources/*.json
+make merge          # Merge sources/*.json → overrides.json
+make generate       # Generate final themes.json
 ```
+
+Or using npm:
+
+```bash
+npm run sync              # 01-sync-index
+npm run detect:dryrun     # 02-detect-strategies (dry-run)
+npm run detect:apply      # 02-detect-strategies --apply
+npm run merge             # 03-merge-sources
+npm run generate          # 04-generate-themes
+```
+
+## Scripts
+
+| Script | Purpose | Options |
+|--------|---------|---------|
+| 01-sync-index | Sync from GitHub | `-c, --config`, `-v, --verbose` |
+| 02-detect-strategies | Detect strategies | `-i, --index`, `-s, --sources`, `-o, --output`, `-n, --sample`, `-r, --repo`, `-a, --apply`, `-v, --verbose` |
+| 03-merge-sources | Merge to overrides.json | `-s, --sources`, `-o, --output` |
+| 04-generate-themes | Generate themes.json | `-i, --index`, `-o, --overrides`, `-O, --output` |
 
 ## Strategy Definitions
 
