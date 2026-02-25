@@ -1,0 +1,30 @@
+{
+  "name": "@theme-browser/monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo for theme-browser.nvim and registry",
+  "workspaces": [
+    "theme-browser-registry-ts"
+  ],
+  "scripts": {
+    "build": "node scripts/build/generate-registry.mjs",
+    "validate": "node scripts/validate/registry.mjs",
+    "validate:lua": "zx scripts/validate/lua-loaders.mjs",
+    "verify:strategies": "zx scripts/tools/verify-strategies.mjs",
+    "test": "npm run test -w theme-browser-registry-ts",
+    "test:plugin": "make -C theme-browser.nvim test",
+    "verify": "make -C theme-browser.nvim verify",
+    "registry:sync": "npm run sync -w theme-browser-registry-ts",
+    "registry:watch": "npm run watch -w theme-browser-registry-ts",
+    "registry:publish": "npm run publish -w theme-browser-registry-ts",
+    "registry:export": "npm run export -w theme-browser-registry-ts",
+    "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts"
+  },
+  "devDependencies": {
+    "zx": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

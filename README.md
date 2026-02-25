@@ -52,6 +52,7 @@ cp .env.example .env
 source .env
 
 # 3. Run indexer
+cd theme-browser-registry-ts
 npx tsx src/index.ts sync
 ```
 

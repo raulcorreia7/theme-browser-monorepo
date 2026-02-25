@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "discovery": {
+    "topics": ["neovim-colorscheme", "nvim-theme", "vim-colorscheme"],
+    "includeRepos": ["folke/tokyonight.nvim", "catppuccin/nvim", "rebelot/kanagawa.nvim"],
+    "pagination": {
+      "perPage": 100,
+      "maxPagesPerTopic": 5
+    }
+  },
+  "github": {
+    "rateLimit": {
+      "delayMs": 250,
+      "retryLimit": 3
+    }
+  },
+  "processing": {
+    "batch": {
+      "size": 50,
+      "pauseMs": 0
+    },
+    "concurrency": 5,
+    "maxReposPerRun": 0
+  },
+  "filters": {
+    "minStars": 0,
+    "skipArchived": true,
+    "skipDisabled": true,
+    "staleAfterDays": 14
+  },
+  "output": {
+    "themes": "artifacts/themes.json",
+    "manifest": "artifacts/manifest.json",
+    "cache": ".state/indexer.db"
+  },
+  "overrides": "overrides.json",
+  "runtime": {
+    "scanIntervalSeconds": 1800,
+    "logLevel": "INFO"
+  },
+  "publish": {
+    "enabled": false,
+    "git": {
+      "remote": "origin",
+      "branch": "master",
+      "message": "chore(registry): publish latest index artifacts"
+    }
+  }
+}
