@@ -5,7 +5,7 @@ SHELL := /bin/bash
 ROOT := $(CURDIR)
 
 .PHONY: all help status clean \
-        sync detect merge build pipeline \
+        sync detect merge build pipeline publish \
         validate validate-lua \
         test test-plugin verify
 
@@ -13,6 +13,11 @@ all: build validate
 
 pipeline: sync detect merge build
 	@echo "✓ Pipeline complete → artifacts/themes.json"
+
+publish: pipeline
+	@echo "→ Publishing to registry repo..."
+	@cd theme-browser-registry-ts && git add -A && git commit -m "chore: update themes $(shell date +%Y-%m-%d)" && git push
+	@echo "✓ Pushed to registry repo (CI will create release)"
 
 help:
 	@echo "theme-browser-monorepo"
@@ -24,6 +29,7 @@ help:
 	@echo "  make build       04: Generate final themes.json"
 	@echo ""
 	@echo "  make pipeline    Run all steps in sequence"
+	@echo "  make publish     Push to registry repo (triggers release)"
 	@echo ""
 	@echo "Validation:"
 	@echo "  make validate       Validate registry completeness"
