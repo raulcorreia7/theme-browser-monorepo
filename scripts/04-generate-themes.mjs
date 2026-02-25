@@ -158,17 +158,18 @@ function generate() {
       colorscheme: theme.colorscheme,
     };
 
-    if (builtinNames.has(nameLower)) {
-      entry.conflicts_with_builtin = true;
-    }
-
     if (theme.mode) {
       entry.mode = theme.mode;
     }
 
     const strategy = override?.meta?.strategy ?? theme.meta?.strategy;
+    entry.meta = { source: "github" };
     if (strategy) {
-      entry.meta = { strategy };
+      entry.meta.strategy = strategy;
+    }
+
+    if (builtinNames.has(nameLower)) {
+      entry.meta.conflicts = [nameLower];
     }
 
     if (theme.variants && theme.variants.length > 0) {
@@ -208,8 +209,9 @@ function generate() {
       entry.mode = builtin.mode;
     }
 
+    entry.meta = { source: "neovim" };
     if (builtin.meta && builtin.meta.strategy) {
-      entry.meta = { strategy: builtin.meta.strategy };
+      entry.meta.strategy = builtin.meta.strategy;
     }
 
     curated.push(entry);
