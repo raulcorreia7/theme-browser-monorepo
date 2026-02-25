@@ -3,3 +3,15 @@
 node_modules/
 .cache/
 reports/
+.env
+.env.local
+.env.*.local
+*.env
+*.pem
+*.key
+*.crt
+*.cert
+secrets/
+credentials/
+*.secret
+*.credentials
