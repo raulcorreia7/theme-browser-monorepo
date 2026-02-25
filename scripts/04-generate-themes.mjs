@@ -158,6 +158,10 @@ function generate() {
       colorscheme: theme.colorscheme,
     };
 
+    if (theme.stars) {
+      entry.stars = theme.stars;
+    }
+
     if (theme.mode) {
       entry.mode = theme.mode;
     }
@@ -199,6 +203,7 @@ function generate() {
       name: builtin.name,
       colorscheme: builtin.colorscheme,
       builtin: true,
+      stars: 0,
     };
 
     if (builtin.description) {
