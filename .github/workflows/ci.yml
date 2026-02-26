@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  registry:
+    name: Registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Test
+        run: npm run test -- --exclude "tests/e2e/**"
+
+      - name: Build
+        run: npm run build
+
+  plugin:
+    name: Plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v11
+        with:
+          luaVersion: "5.1"
+
+      - name: Setup luarocks
+        uses: leafo/gh-actions-luarocks@v5
+
+      - name: Install luacheck
+        run: luarocks install luacheck
+
+      - name: Install StyLua
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          version: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint with luacheck
+        run: luacheck packages/plugin
+        continue-on-error: true
+
+      - name: Format check with StyLua
+        run: stylua --check packages/plugin

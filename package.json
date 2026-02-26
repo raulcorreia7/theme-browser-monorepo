@@ -1,6 +1,6 @@
 {
   "name": "@theme-browser/monorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
@@ -8,22 +8,22 @@
     "packages/registry"
   ],
   "scripts": {
-    "sync": "npx tsx scripts/01-sync.ts",
-    "detect": "npx tsx scripts/02-detect.ts --apply",
-    "detect:dryrun": "npx tsx scripts/02-detect.ts",
-    "merge": "npx tsx scripts/03-merge.ts",
-    "build": "node scripts/04-build.mjs",
+    "sync": "npm run task:sync -w packages/registry",
+    "detect": "npm run task:detect -w packages/registry",
+    "detect:dryrun": "npm run task:detect:dryrun -w packages/registry",
+    "merge": "npm run task:merge -w packages/registry",
+    "build": "npm run task:build -w packages/registry",
+    "bundle": "npm run task:bundle -w packages/registry",
     "pipeline": "npm run sync && npm run detect && npm run merge && npm run build",
-    "install:plugin": "node scripts/05-bundle.mjs",
-    "validate": "node scripts/validate/registry.mjs",
-    "validate:lua": "zx scripts/validate/lua-loaders.mjs",
+    "validate": "npm run task:validate -w packages/registry",
     "verify": "npm run build && npm run validate",
+    "lint": "npm run lint -w packages/registry",
+    "typecheck": "npm run typecheck -w packages/registry",
+    "format": "npm run format -w packages/registry",
+    "format:check": "npm run format:check -w packages/registry",
     "test": "npm run test -w packages/registry",
     "test:plugin": "make -C packages/plugin test",
     "clean": "npm run clean -w packages/registry && rm -rf packages/registry/artifacts reports .cache"
-  },
-  "devDependencies": {
-    "zx": "^8.0.0"
   },
   "engines": {
     "node": ">=20"
