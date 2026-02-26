@@ -26,6 +26,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - Optimized pipeline scripts for performance and maintainability
 - Moved pipeline scripts from monorepo root to registry package
 - Replaced `console.log` with `logger.info` in commands
+- Updated to 391 themes (385 variants)
 
 #### Removed
 
@@ -39,6 +40,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - Native `vim.ui.select` picker integration
 - Entry display utilities with icons
 - StyLua formatting configuration
+- Comprehensive test infrastructure (`tests/helpers/test_utils.lua`, `tests/helpers/fixtures/registry.lua`)
 
 #### Changed
 
@@ -46,11 +48,17 @@ A major refactor focused on code quality, architecture, and developer experience
 - Applied StyLua formatting to all Lua files
 - Fixed all luacheck warnings
 - Improved Lua 5.1 compatibility (replaced `goto` with `if-not`)
+- **Refactored test suite** (25% line reduction, 76% integration test reduction):
+  - Created shared test utilities
+  - Rewrote integration tests to be focused and smaller
+  - Standardized module reset patterns
+  - Added test fixtures
 
 #### Removed
 
 - Custom gallery UI components (`ui/gallery/`)
 - Deprecated log utility
+- **Removed Python dependencies**: migrated `lint-lua.py` and `smoke.py` to Bash
 
 ### Monorepo
 
