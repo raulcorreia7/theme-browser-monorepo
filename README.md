@@ -2,9 +2,8 @@
 
 Monorepo workspace for coordinated development across:
 
-- `theme-browser.nvim` — Neovim plugin for browsing and applying colorschemes
-- `theme-browser-registry-ts` — TypeScript theme registry indexer (primary)
-- `theme-browser-registry` — Python indexer (deprecated)
+- `packages/plugin` — Neovim plugin for browsing and applying colorschemes
+- `packages/registry` — TypeScript theme registry indexer
 
 This workspace keeps both projects as independent git repositories under one root for easier local workflows.
 
@@ -12,27 +11,30 @@ This workspace keeps both projects as independent git repositories under one roo
 
 ```text
 theme-browser-monorepo/
-├── theme-browser.nvim/         # Neovim plugin
-├── theme-browser-registry-ts/  # TypeScript indexer (primary)
-└── theme-browser-registry/     # Python indexer (deprecated)
+├── packages/
+│   ├── plugin/     # Neovim plugin (theme-browser.nvim)
+│   └── registry/   # TypeScript theme indexer
+├── docs/           # Documentation
+└── scripts/        # Release and utility scripts
 ```
 
 ## Quick Commands
 
 | Command | Description |
 |---------|-------------|
-| `make status` | Show git status for all repos |
-| `make sync` | Step 01: Sync themes from GitHub |
-| `make detect` | Step 02: Detect loading strategies |
-| `make merge` | Step 03: Merge sources |
-| `make build` | Step 04: Generate themes.json |
-| `make pipeline` | Run all steps 01-04 |
-| `make install` | Copy top 50 themes to plugin |
-| `make update-bundled` | Download latest themes-top-50.json to plugin |
-| `make verify` | Build + validate + test plugin |
-| `make test` | Run registry tests |
-| `make test-plugin` | Run plugin tests |
-| `make clean` | Clean all artifacts |
+| `npm run sync` | Step 01: Sync themes from GitHub |
+| `npm run detect` | Step 02: Detect loading strategies |
+| `npm run merge` | Step 03: Merge sources |
+| `npm run build` | Step 04: Generate themes.json |
+| `npm run pipeline` | Run all steps 01-04 |
+| `npm run validate` | Validate registry output |
+| `npm run verify` | Build + validate |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format with Prettier |
+| `npm run typecheck` | Type check TypeScript |
+| `npm run test` | Run registry tests |
+| `npm run test:plugin` | Run plugin tests |
+| `npm run clean` | Clean all artifacts |
 
 ## Registry Setup
 
@@ -47,17 +49,15 @@ The TypeScript registry indexes Neovim colorschemes from GitHub and produces `th
 
 ```bash
 # 1. Install dependencies
-cd theme-browser-registry-ts
 npm install
 
 # 2. Configure GitHub token
-cp .env.example .env
+cp packages/registry/.env.example packages/registry/.env
 # Edit .env: GITHUB_TOKEN=ghp_your_token_here
-source .env
+source packages/registry/.env
 
 # 3. Run indexer
-cd theme-browser-registry-ts
-npx tsx src/index.ts sync
+npm run sync
 ```
 
 ### Getting a GitHub Token
@@ -70,18 +70,26 @@ Rate limits:
 - Without token: ~60 requests/hour
 - With token: ~5,000 requests/hour
 
-### CI/CD
-
-Automated daily updates via GitHub Actions (`.github/workflows/registry.yml`), publishing `themes.json` to GitHub Releases.
-
 ## Plugin Setup
 
-See [theme-browser.nvim/README.md](theme-browser.nvim/README.md) for Neovim plugin installation and usage.
+See [packages/plugin/README.md](packages/plugin/README.md) for Neovim plugin installation and usage.
+
+## Release
+
+```bash
+# Create a new release (updates versions, tags, pushes to all remotes)
+./scripts/release.sh 0.3.0
+
+# Dry run to see what would happen
+./scripts/release.sh 0.3.0 --dry-run
+```
 
 ## Documentation
 
-- [theme-browser-registry-ts/README.md](theme-browser-registry-ts/README.md) — Registry indexer details
-- [theme-browser.nvim/README.md](theme-browser.nvim/README.md) — Plugin usage
+- [packages/registry/README.md](packages/registry/README.md) — Registry indexer details
+- [packages/plugin/README.md](packages/plugin/README.md) — Plugin usage
+- [docs/dependencies.md](docs/dependencies.md) — Dependency upgrade paths
+- [CHANGELOG.md](CHANGELOG.md) — Version history
 
 ## License
 
