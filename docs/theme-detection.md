@@ -5,7 +5,7 @@ Automated theme strategy detection with 100% accuracy on 613 themes.
 ## Architecture
 
 ```
-theme-browser-registry-ts/
+packages/registry/
 ├── artifacts/
 │   ├── index.json         # Raw theme inventory (synced from GitHub)
 │   ├── themes.json        # Final output for plugin consumption
