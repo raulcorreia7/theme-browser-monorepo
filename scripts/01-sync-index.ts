@@ -10,7 +10,7 @@
  *   -h, --help            Show help
  */
 import { parseArgs } from "node:util";
-import { resolve } from "node:path";
+import { resolve, basename } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -43,7 +43,8 @@ if (showHelp) {
   process.exit(0);
 }
 
-const args = ["run", "sync", "-w", "theme-browser-registry-ts", "--", "-c", config];
+const configPath = resolve(ROOT, config);
+const args = ["run", "sync", "-w", "theme-browser-registry-ts", "--", "-c", configPath];
 if (verbose) args.push("-v");
 
 const result = spawnSync("npm", args, { cwd: ROOT, stdio: "inherit" });
