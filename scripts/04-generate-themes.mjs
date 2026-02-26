@@ -88,6 +88,22 @@ function isValidThemeName(name) {
   return /^[a-zA-Z0-9_-]+$/.test(name);
 }
 
+const LIGHT_PATTERNS = ["-light", "-day", "-latte", "-dawn", "-morning", "light-", "day-", "dawn-", "_light", "_day", "-snow", "-operandi", "-lumi"];
+const DARK_PATTERNS = ["-dark", "-night", "-moon", "-storm", "-mocha", "-dragon", "-wave", "dark-", "night-", "_dark", "_night", "-dusk", "-vivendi", "-ember", "-fog", "-moss"];
+
+function inferModeFromColorscheme(colorscheme) {
+  if (!colorscheme || typeof colorscheme !== "string") return null;
+  const name = colorscheme.toLowerCase();
+  
+  for (const pattern of LIGHT_PATTERNS) {
+    if (name.includes(pattern)) return "light";
+  }
+  for (const pattern of DARK_PATTERNS) {
+    if (name.includes(pattern)) return "dark";
+  }
+  return null;
+}
+
 function loadBuiltinThemes(overridesPath) {
   if (!existsSync(overridesPath)) {
     return { builtin: [], variantHints: new Map() };
@@ -261,11 +277,13 @@ function generate() {
           colorscheme: v.colorscheme,
         };
 
-        // Apply mode: prefer existing mode, then hint, then nothing
         if (v.mode) {
           variant.mode = v.mode;
         } else if (hintsForRepo && hintsForRepo[v.name]) {
           variant.mode = hintsForRepo[v.name];
+        } else {
+          const inferred = inferModeFromColorscheme(v.colorscheme);
+          if (inferred) variant.mode = inferred;
         }
 
         if (v.meta && v.meta.strategy) {
@@ -280,6 +298,11 @@ function generate() {
   }
 
   for (const builtin of builtinThemes) {
+    const nameLower = builtin.name.toLowerCase();
+    if (themesByName.has(nameLower)) {
+      continue;
+    }
+
     const entry = {
       name: builtin.name,
       colorscheme: builtin.colorscheme,
