@@ -90,17 +90,36 @@ function isValidThemeName(name) {
 
 function loadBuiltinThemes(overridesPath) {
   if (!existsSync(overridesPath)) {
-    return [];
+    return { builtin: [], variantHints: new Map() };
   }
 
   const raw = readFileSync(overridesPath, "utf-8");
   const data = JSON.parse(raw);
 
-  if (!Array.isArray(data.builtin)) {
-    return [];
+  // Load variant mode hints from hints.json
+  const variantHints = new Map();
+  const hintsPath = resolve(dirname(overridesPath), "sources/hints.json");
+  if (existsSync(hintsPath)) {
+    try {
+      const hintsRaw = readFileSync(hintsPath, "utf-8");
+      const hintsData = JSON.parse(hintsRaw);
+      if (Array.isArray(hintsData.hints)) {
+        for (const hint of hintsData.hints) {
+          if (hint.repo && hint.variantModes) {
+            variantHints.set(hint.repo, hint.variantModes);
+          }
+        }
+      }
+    } catch (err) {
+      logDim(`  Warning: Could not load variant hints: ${err.message}`);
+    }
   }
 
-  return data.builtin.filter((t) => t && t.name && t.builtin === true);
+  const builtin = Array.isArray(data.builtin)
+    ? data.builtin.filter((t) => t && t.name && t.builtin === true)
+    : [];
+
+  return { builtin, variantHints };
 }
 
 function loadOverrides(overridesPath) {
@@ -127,7 +146,7 @@ function generate() {
   const themes = JSON.parse(raw);
 
   const overridesMap = loadOverrides(overrides);
-  const builtinThemes = loadBuiltinThemes(overrides);
+  const { builtin: builtinThemes, variantHints } = loadBuiltinThemes(overrides);
   const builtinNames = new Set(builtinThemes.map((t) => t.name.toLowerCase()));
 
   // First pass: deduplicate by name, keeping the best theme
@@ -233,14 +252,20 @@ function generate() {
     }
 
     if (theme.variants && theme.variants.length > 0) {
+      // Get variant mode hints for this repo
+      const hintsForRepo = theme.repo ? variantHints.get(theme.repo) : null;
+
       entry.variants = theme.variants.map((v) => {
         const variant = {
           name: v.name,
           colorscheme: v.colorscheme,
         };
 
+        // Apply mode: prefer existing mode, then hint, then nothing
         if (v.mode) {
           variant.mode = v.mode;
+        } else if (hintsForRepo && hintsForRepo[v.name]) {
+          variant.mode = hintsForRepo[v.name];
         }
 
         if (v.meta && v.meta.strategy) {
