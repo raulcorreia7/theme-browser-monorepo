@@ -1,1 +1,0 @@
-../theme-browser-registry-ts/scripts/05-install-themes.mjs

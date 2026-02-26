@@ -1,1 +1,0 @@
-../theme-browser-registry-ts/scripts/03-merge-sources.ts

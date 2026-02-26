@@ -1,1 +1,0 @@
-../theme-browser-registry-ts/scripts/apply-variant-modes.ts

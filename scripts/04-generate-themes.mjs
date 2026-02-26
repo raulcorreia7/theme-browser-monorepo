@@ -1,1 +1,0 @@
-../theme-browser-registry-ts/scripts/04-generate-themes.mjs

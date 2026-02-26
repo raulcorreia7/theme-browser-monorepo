@@ -1,1 +1,0 @@
-../theme-browser-registry-ts/scripts/02-detect-strategies.ts

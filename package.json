@@ -5,22 +5,22 @@
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
   "workspaces": [
-    "theme-browser-registry-ts"
+    "packages/registry"
   ],
   "scripts": {
-    "sync": "npx tsx scripts/01-sync-index.ts",
-    "detect": "npx tsx scripts/02-detect-strategies.ts --apply",
-    "detect:dryrun": "npx tsx scripts/02-detect-strategies.ts",
-    "merge": "npx tsx scripts/03-merge-sources.ts",
-    "build": "node scripts/04-generate-themes.mjs",
+    "sync": "npx tsx scripts/01-sync.ts",
+    "detect": "npx tsx scripts/02-detect.ts --apply",
+    "detect:dryrun": "npx tsx scripts/02-detect.ts",
+    "merge": "npx tsx scripts/03-merge.ts",
+    "build": "node scripts/04-build.mjs",
     "pipeline": "npm run sync && npm run detect && npm run merge && npm run build",
-    "install:plugin": "node scripts/05-install-themes.mjs",
+    "install:plugin": "node scripts/05-bundle.mjs",
     "validate": "node scripts/validate/registry.mjs",
     "validate:lua": "zx scripts/validate/lua-loaders.mjs",
     "verify": "npm run build && npm run validate",
-    "test": "npm run test -w theme-browser-registry-ts",
-    "test:plugin": "make -C theme-browser.nvim test",
-    "clean": "npm run clean -w theme-browser-registry-ts && rm -rf theme-browser-registry-ts/artifacts reports .cache"
+    "test": "npm run test -w packages/registry",
+    "test:plugin": "make -C packages/plugin test",
+    "clean": "npm run clean -w packages/registry && rm -rf packages/registry/artifacts reports .cache"
   },
   "devDependencies": {
     "zx": "^8.0.0"

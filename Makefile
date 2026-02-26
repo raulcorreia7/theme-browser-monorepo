@@ -1,96 +1,57 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
-.ONESHELL:
 
-ROOT := $(CURDIR)
-
-.PHONY: all help status clean \
-        sync detect merge build pipeline publish install update-bundled \
-        validate validate-lua \
-        test test-plugin verify
+.PHONY: all help status clean pipeline sync detect merge build validate test
 
 all: build validate
-
-pipeline: sync detect merge build
-	@echo "✓ Pipeline complete → artifacts/themes.json"
-
-publish: pipeline
-	@echo "→ Publishing to registry repo..."
-	@cd theme-browser-registry-ts && git add -A && git commit -m "chore: update themes $(shell date +%Y-%m-%d)" && git push
-	@echo "✓ Pushed to registry repo (CI will create release)"
 
 help:
 	@echo "theme-browser-monorepo"
 	@echo ""
-	@echo "Pipeline (run in order):"
-	@echo "  make sync        01: Sync themes from GitHub → artifacts/index.json"
-	@echo "  make detect      02: Detect strategies → sources/*.json"
-	@echo "  make merge       03: Merge sources → overrides.json"
-	@echo "  make build       04: Generate final themes.json"
+	@echo "Pipeline:"
+	@echo "  make pipeline    Run full pipeline (sync → detect → merge → build)"
+	@echo "  make validate    Validate registry"
+	@echo "  make test        Run tests"
 	@echo ""
-	@echo "  make pipeline    Run all steps in sequence"
-	@echo "  make publish     Push to registry repo (triggers release)"
-	@echo "  make install     Copy top themes to plugin"
-	@echo ""
-	@echo "Validation:"
-	@echo "  make validate       Validate registry completeness"
-	@echo "  make validate-lua   Validate Lua loader syntax"
-	@echo "  make verify         Full verification (build + validate + plugin)"
-	@echo ""
-	@echo "Testing:"
-	@echo "  make test           Run registry tests"
-	@echo "  make test-plugin    Run plugin tests"
+	@echo "Individual steps (delegated to packages/registry):"
+	@echo "  make sync        Sync themes from GitHub"
+	@echo "  make detect      Detect loading strategies"
+	@echo "  make merge       Merge sources"
+	@echo "  make build       Generate themes.json"
 	@echo ""
 	@echo "Utilities:"
-	@echo "  make status         Show git status for all repos"
-	@echo "  make clean          Clean all artifacts"
+	@echo "  make status      Show git status"
+	@echo "  make clean       Clean all artifacts"
 
 status:
-	@echo "=== theme-browser.nvim ==="
-	@git -C theme-browser.nvim status --short --branch
+	@echo "=== packages/plugin ===" && git -C packages/plugin status --short --branch
 	@echo ""
-	@echo "=== theme-browser-registry-ts ==="
-	@git -C theme-browser-registry-ts status --short --branch
+	@echo "=== packages/registry ===" && git -C packages/registry status --short --branch
+
+pipeline:
+	@npm run pipeline -w packages/registry
+	@echo "✓ Pipeline complete → packages/registry/artifacts/themes.json"
 
 sync:
-	@npx tsx scripts/01-sync-index.ts
+	@npm run sync -w packages/registry
 
 detect:
-	@npx tsx scripts/02-detect-strategies.ts --apply
+	@npm run detect -w packages/registry
 
 merge:
-	@npx tsx scripts/03-merge-sources.ts
+	@npm run merge -w packages/registry
 
 build:
-	@node scripts/04-generate-themes.mjs
-
-install:
-	@node scripts/05-install-themes.mjs
-
-update-bundled:
-	curl -sL -o theme-browser.nvim/lua/theme-browser/data/themes-top-50.json \
-		https://github.com/raulcorreia7/theme-browser-registry/releases/latest/download/themes-top-50.json
+	@npm run build:themes -w packages/registry
 
 validate:
-	@node scripts/validate/registry.mjs
-
-validate-lua:
-	@zx scripts/validate/lua-loaders.mjs
-
-verify: build validate
-	@$(MAKE) -C theme-browser.nvim verify
+	@npm run validate -w packages/registry
 
 test:
-	@npm run test -w theme-browser-registry-ts
-
-test-plugin:
-	@$(MAKE) -C theme-browser.nvim test
+	@npm run test -w packages/registry
 
 clean:
-	@rm -rf theme-browser-registry-ts/.state
-	@rm -rf theme-browser-registry-ts/artifacts
-	@rm -rf theme-browser-registry-ts/dist
-	@rm -rf theme-browser-registry-ts/coverage
+	@npm run clean -w packages/registry
 	@rm -rf reports .cache
-	@$(MAKE) -C theme-browser.nvim clean
-	@echo "✓ Cleaned all artifacts"
+	@$(MAKE) -C packages/plugin clean
+	@echo "✓ Cleaned"
