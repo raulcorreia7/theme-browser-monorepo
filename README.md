@@ -103,7 +103,6 @@ Full release guide: [docs/release.md](docs/release.md)
 - [packages/registry/README.md](packages/registry/README.md) — Registry indexer details
 - [packages/plugin/README.md](packages/plugin/README.md) — Plugin usage
 - [docs/release.md](docs/release.md) — Release automation and version bumping
-- [docs/dependencies.md](docs/dependencies.md) — Dependency upgrade paths
 - [CHANGELOG.md](CHANGELOG.md) — Version history
 
 ## License

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-02-27
+
+Patch release focused on command UX simplification and E2E stability.
+
+### Plugin
+
+#### Fixed
+
+- Accept top-level browser control commands (`:ThemeBrowser enable|disable|toggle`) without opening the picker
+- Simplify registry command UX with inline actions (`:ThemeBrowser sync|clear`, `:ThemeBrowser! sync`)
+- Stabilize headless E2E startup by using explicit `lua` command invocations
+
+#### Changed
+
+- Updated command completion and help text to reflect inline command flow
+- Expanded integration coverage for command completion and shorthand command behavior
+- Release pipeline now uploads `themes.json` and `manifest.json` assets
+- Release pipeline validates uploaded assets before completing
+
+### Monorepo
+
+#### Changed
+
+- Root Makefile registry targets now use `pnpm --filter` so `make pipeline` works after the pnpm migration
+- Workspace-level `pnpm.onlyBuiltDependencies` now lives in root `package.json` to keep native dependency builds configured
+- Registry source snapshots were refreshed from the rebuilt pipeline state
+- Removed stale migration/planning docs that were no longer used by the active release workflow
+
 ## [0.3.2] - 2026-02-27
 
 Patch release focused on release automation and picker quality-of-life improvements.
@@ -33,9 +61,6 @@ Patch release focused on release automation and picker quality-of-life improveme
 - Release script now validates tag availability across root/plugin/registry before execution
 - Release script updates root lockfile version fields during version bumps
 - Makefile now exposes `release` and `release-dry` shortcuts
-- Root Makefile registry targets now use `pnpm --filter` so `make pipeline` works after the pnpm migration
-- Workspace-level `pnpm.onlyBuiltDependencies` now lives in root `package.json` to keep native dependency builds configured
-- Registry source snapshots were refreshed from the rebuilt pipeline state
 
 ## [0.3.1] - 2026-02-27
 
@@ -226,6 +251,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.3.3]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.2.1...v0.3.0
