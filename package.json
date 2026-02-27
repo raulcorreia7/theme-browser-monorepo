@@ -4,28 +4,26 @@
   "private": true,
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
-  "workspaces": [
-    "packages/registry"
-  ],
   "scripts": {
-    "sync": "npm run task:sync -w packages/registry",
-    "detect": "npm run task:detect -w packages/registry",
-    "detect:dryrun": "npm run task:detect:dryrun -w packages/registry",
-    "merge": "npm run task:merge -w packages/registry",
-    "build": "npm run task:build -w packages/registry",
-    "bundle": "npm run task:bundle -w packages/registry",
-    "pipeline": "npm run sync && npm run detect && npm run merge && npm run build",
-    "validate": "npm run task:validate -w packages/registry",
-    "verify": "npm run build && npm run validate",
-    "lint": "npm run lint -w packages/registry",
-    "typecheck": "npm run typecheck -w packages/registry",
-    "format": "npm run format -w packages/registry",
-    "format:check": "npm run format:check -w packages/registry",
-    "test": "npm run test -w packages/registry",
+    "sync": "pnpm --filter @theme-browser/registry task:sync",
+    "detect": "pnpm --filter @theme-browser/registry task:detect",
+    "detect:dryrun": "pnpm --filter @theme-browser/registry task:detect:dryrun",
+    "merge": "pnpm --filter @theme-browser/registry task:merge",
+    "build": "pnpm --filter @theme-browser/registry task:build",
+    "bundle": "pnpm --filter @theme-browser/registry task:bundle",
+    "pipeline": "pnpm sync && pnpm detect && pnpm merge && pnpm build",
+    "validate": "pnpm --filter @theme-browser/registry task:validate",
+    "verify": "pnpm build && pnpm validate",
+    "lint": "pnpm --filter @theme-browser/registry lint",
+    "typecheck": "pnpm --filter @theme-browser/registry typecheck",
+    "format": "pnpm --filter @theme-browser/registry format",
+    "format:check": "pnpm --filter @theme-browser/registry format:check",
+    "test": "pnpm --filter @theme-browser/registry test",
     "test:plugin": "make -C packages/plugin test",
-    "clean": "npm run clean -w packages/registry && rm -rf packages/registry/artifacts reports .cache"
+    "clean": "pnpm --filter @theme-browser/registry clean && rm -rf packages/registry/artifacts reports .cache"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "packageManager": "pnpm@10.28.0"
 }
