@@ -1,6 +1,6 @@
 # Theme Detection System
 
-Automated theme strategy detection with 100% accuracy on 613 themes.
+Automated theme strategy detection with curated overrides and safety exclusions.
 
 ## Architecture
 
@@ -27,6 +27,8 @@ make sync      # 01: Sync themes from GitHub → artifacts/index.json
 make detect    # 02: Detect strategies → sources/*.json
 make merge     # 03: Merge sources → overrides.json
 make build     # 04: Generate final themes.json
+make bundle    # 05: Generate plugin bundled registry
+make validate  # Validate strategy and quality constraints
 
 make pipeline  # Run all steps
 ```
@@ -38,6 +40,8 @@ npm run sync       # 01-sync-index
 npm run detect     # 02-detect-strategies --apply
 npm run merge      # 03-merge-sources
 npm run build      # 04-generate-themes
+npm run bundle     # 05-bundle-plugin-registry
+npm run validate   # Validate output
 npm run pipeline   # All steps
 ```
 
@@ -109,15 +113,24 @@ Non-theme repos to exclude:
 - `*.vimrc*`, `*/init.vim`
 - No `colors/` directory AND no `lua/` theme module
 - Theme generators (e.g., `lush.nvim`)
+- Themes with side effects outside Neovim runtime (for example writing `~/.config/*`)
+
+Exclusions are enforced in two layers:
+- `config.json` → `discovery.excludeRepos` (discovery-time hard exclusion)
+- `excluded.json` (curated deny-list for visibility/auditing)
 
 ## Accuracy
 
 | Metric | Value |
 |--------|-------|
-| Total themes | 613 |
-| Correct | 613 |
-| Incorrect | 0 |
-| **Accuracy** | **100%** |
+| Detection quality | High confidence + manual hints |
+| Strategy fallback | README patterns → source structure |
+| Safety filter | Excluded repos never enter final bundle |
+
+Count semantics:
+- `themes` means top-level theme records
+- `variants` means nested variant options under those themes
+- They are different dimensions, so they are not summed as `themes + variants`
 
 ### Edge Cases (Manual Hints Required)
 

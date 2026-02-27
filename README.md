@@ -26,6 +26,7 @@ theme-browser-monorepo/
 | `npm run detect` | Step 02: Detect loading strategies |
 | `npm run merge` | Step 03: Merge sources |
 | `npm run build` | Step 04: Generate themes.json |
+| `npm run bundle` | Step 05: Bundle top themes for plugin |
 | `npm run pipeline` | Run all steps 01-04 |
 | `npm run validate` | Validate registry output |
 | `npm run verify` | Build + validate |
@@ -83,6 +84,11 @@ See [packages/plugin/README.md](packages/plugin/README.md) for Neovim plugin ins
 # Dry run to see what would happen
 ./scripts/release.sh 0.3.0 --dry-run
 ```
+
+Release notes:
+- `scripts/release.sh` validates `CHANGELOG.md` before release by default
+- Tag/release workflows in plugin and registry are idempotent (safe on reruns)
+- `v0.2.1` is the current stability baseline
 
 ## Documentation
 

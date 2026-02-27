@@ -46,7 +46,7 @@ This document tracks planned dependency upgrades and their migration paths.
 **Target**: 10.x
 
 **Migration Notes**:
-- Review [ESint 10 migration guide](https://eslint.org/docs/latest/use/migrate-to-10.0.0)
+- Review [ESLint 10 migration guide](https://eslint.org/docs/latest/use/migrate-to-10.0.0)
 - Already using flat config, should be straightforward
 - Check typescript-eslint compatibility
 
@@ -78,4 +78,4 @@ This document tracks planned dependency upgrades and their migration paths.
 
 ## Last Updated
 
-2026-02-26
+2026-02-27

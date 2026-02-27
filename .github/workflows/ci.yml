@@ -2,24 +2,36 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
-    branches: [main]
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   registry:
     name: Registry
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -42,31 +54,39 @@ jobs:
   plugin:
     name: Plugin
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Lua
         uses: leafo/gh-actions-lua@v11
         with:
           luaVersion: "5.1"
 
-      - name: Setup luarocks
+      - name: Setup LuaRocks
         uses: leafo/gh-actions-luarocks@v5
 
       - name: Install luacheck
         run: luarocks install luacheck
 
-      - name: Install StyLua
+      - name: Setup StyLua
         uses: JohnnyMorganz/stylua-action@v4
         with:
           version: latest
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lint with luacheck
-        run: luacheck packages/plugin
-        continue-on-error: true
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
 
-      - name: Format check with StyLua
-        run: stylua --check packages/plugin
+      - name: Verify plugin
+        run: make verify
+        working-directory: packages/plugin
+        env:
+          CI: true

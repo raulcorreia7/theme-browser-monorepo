@@ -25,13 +25,28 @@ UX release focused on reducing command surface area and improving preview reliab
 #### Changed
 
 - Help/docs/tests now use the single root command model instead of many `:ThemeBrowser*` aliases
+- CI, release, and E2E workflows now use explicit branch filters, concurrency control, and
+  stricter verification steps
+
+### Registry
+
+#### Added
+
+- Shared mode resolution utilities and expanded test coverage for build/detect/parser behavior
+- Dedicated task scripts for manifest and top-theme bundling used by release automation
+
+#### Changed
+
+- Discovery and detection hints were expanded to improve strategy/mode classification quality
+- CI and release workflows now use cached installs, `npm ci`, stronger checks, and idempotent
+  release asset publishing
 
 ### Monorepo
 
 #### Changed
 
 - Version bumped to `0.3.0`
-- Plugin submodule updated with command UX consolidation and runtime loader reliability fixes
+- Plugin and registry submodules updated with command UX, reliability, and CI/CD improvements
 
 ## [0.2.1] - 2026-02-27
 
