@@ -33,6 +33,9 @@ Patch release focused on release automation and picker quality-of-life improveme
 - Release script now validates tag availability across root/plugin/registry before execution
 - Release script updates root lockfile version fields during version bumps
 - Makefile now exposes `release` and `release-dry` shortcuts
+- Root Makefile registry targets now use `pnpm --filter` so `make pipeline` works after the pnpm migration
+- Workspace-level `pnpm.onlyBuiltDependencies` now lives in root `package.json` to keep native dependency builds configured
+- Registry source snapshots were refreshed from the rebuilt pipeline state
 
 ## [0.3.1] - 2026-02-27
 
