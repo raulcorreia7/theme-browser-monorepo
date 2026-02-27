@@ -388,7 +388,6 @@ release_root() {
 
 	cd "$ROOT_DIR"
 
-	check_git_clean
 	check_main_branch
 	branch=$(git rev-parse --abbrev-ref HEAD)
 
