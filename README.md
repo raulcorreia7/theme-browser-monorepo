@@ -78,22 +78,31 @@ See [packages/plugin/README.md](packages/plugin/README.md) for Neovim plugin ins
 ## Release
 
 ```bash
-# Create a new release (updates versions, tags, pushes to all remotes)
+# Explicit version (updates versions, tags, pushes all repos)
 ./scripts/release.sh 0.3.0
 
 # Dry run to see what would happen
 ./scripts/release.sh 0.3.0 --dry-run
+
+# Auto-bump from current root version
+./scripts/release.sh --bump patch
+./scripts/release.sh --bump minor --dry-run
 ```
 
 Release notes:
 - `scripts/release.sh` validates `CHANGELOG.md` before release by default
+- It checks whether the target tag already exists in root, plugin, or registry before doing work
+- `--bump patch|minor|major` calculates the next version automatically
 - Tag/release workflows in plugin and registry are idempotent (safe on reruns)
-- `v0.2.1` is the current stability baseline
+- Use the latest `vX.Y.Z` tag as the current stability baseline
+
+Full release guide: [docs/release.md](docs/release.md)
 
 ## Documentation
 
 - [packages/registry/README.md](packages/registry/README.md) — Registry indexer details
 - [packages/plugin/README.md](packages/plugin/README.md) — Plugin usage
+- [docs/release.md](docs/release.md) — Release automation and version bumping
 - [docs/dependencies.md](docs/dependencies.md) — Dependency upgrade paths
 - [CHANGELOG.md](CHANGELOG.md) — Version history
 

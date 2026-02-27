@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: all help status clean pipeline sync detect merge build validate test
+.PHONY: all help status clean pipeline sync detect merge build validate test release release-dry
 
 all: build validate
 
@@ -22,6 +22,8 @@ help:
 	@echo "Utilities:"
 	@echo "  make status      Show git status"
 	@echo "  make clean       Clean all artifacts"
+	@echo "  make release VERSION=0.3.1     Run release automation"
+	@echo "  make release-dry VERSION=0.3.1 Preview release automation"
 
 status:
 	@echo "=== packages/plugin ===" && git -C packages/plugin status --short --branch
@@ -49,6 +51,14 @@ validate:
 
 test:
 	@npm run test -w packages/registry
+
+release:
+	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
+	@./scripts/release.sh "$(VERSION)"
+
+release-dry:
+	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
+	@./scripts/release.sh "$(VERSION)" --dry-run
 
 clean:
 	@npm run clean -w packages/registry

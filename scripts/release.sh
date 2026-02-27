@@ -2,7 +2,9 @@
 # release.sh - Create and push a new release
 #
 # Usage: release.sh <version> [options]
+#        release.sh --bump <patch|minor|major> [options]
 #   -d, --dry-run     Show what would be done without executing
+#   -b, --bump TYPE   Auto-calculate next version (patch|minor|major)
 #   -s, --skip-docs   Skip documentation checks (use if already updated)
 #   -y, --yes         Skip confirmation prompt
 #   -h, --help        Show this help
@@ -10,6 +12,7 @@
 # Examples:
 #   ./scripts/release.sh 0.2.0
 #   ./scripts/release.sh 0.3.0 --dry-run
+#   ./scripts/release.sh --bump minor
 #   ./scripts/release.sh 0.3.0 --yes
 #
 # Requirements: git, npm, jq
@@ -31,6 +34,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 dry_run=false
 skip_docs=false
 auto_confirm=false
+bump_type=""
 version=""
 
 usage() {
@@ -71,6 +75,17 @@ validate_version() {
 	fi
 }
 
+validate_bump_type() {
+	local value="$1"
+	case "$value" in
+	patch | minor | major) ;;
+	*)
+		echo "error: bump type must be patch, minor, or major" >&2
+		exit 1
+		;;
+	esac
+}
+
 check_git_clean() {
 	if ! git diff --quiet HEAD 2>/dev/null; then
 		echo "error: uncommitted changes in $(pwd)" >&2
@@ -88,9 +103,115 @@ check_main_branch() {
 	fi
 }
 
-tag_exists() {
+tag_exists_local() {
 	local tag="$1"
 	git rev-parse "$tag" >/dev/null 2>&1
+}
+
+tag_exists_remote() {
+	local tag="$1"
+
+	if ! git remote get-url origin >/dev/null 2>&1; then
+		return 1
+	fi
+
+	git ls-remote --tags origin "refs/tags/$tag" 2>/dev/null | grep -q .
+}
+
+tag_exists() {
+	local tag="$1"
+	tag_exists_local "$tag" || tag_exists_remote "$tag"
+}
+
+calculate_next_version() {
+	local current="$1"
+	local kind="$2"
+	local major minor patch
+
+	if [[ ! "$current" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		echo "error: cannot bump non-semver version '$current'" >&2
+		exit 1
+	fi
+
+	major="${BASH_REMATCH[1]}"
+	minor="${BASH_REMATCH[2]}"
+	patch="${BASH_REMATCH[3]}"
+
+	case "$kind" in
+	patch)
+		patch=$((patch + 1))
+		;;
+	minor)
+		minor=$((minor + 1))
+		patch=0
+		;;
+	major)
+		major=$((major + 1))
+		minor=0
+		patch=0
+		;;
+	esac
+
+	echo "${major}.${minor}.${patch}"
+}
+
+resolve_target_version() {
+	if [[ -n "$version" ]]; then
+		validate_version "$version"
+		return
+	fi
+
+	if [[ -z "$bump_type" ]]; then
+		echo "error: provide <version> or --bump <patch|minor|major>" >&2
+		exit 1
+	fi
+
+	local current
+	current=$(get_current_version "$ROOT_DIR/package.json")
+	validate_version "$current"
+	version=$(calculate_next_version "$current" "$bump_type")
+}
+
+update_root_lockfile_version() {
+	local new_version="$1"
+	local lockfile="$ROOT_DIR/package-lock.json"
+
+	if [[ ! -f "$lockfile" ]]; then
+		return
+	fi
+
+	if $dry_run; then
+		log_dry "Update $lockfile root/package workspace versions to $new_version"
+		return
+	fi
+
+	jq --arg v "$new_version" '
+	  .version = $v
+	  | .packages[""].version = $v
+	  | (if .packages["packages/registry"] then .packages["packages/registry"].version = $v else . end)
+	  | (if .packages["theme-browser-registry-ts"] then .packages["theme-browser-registry-ts"].version = $v else . end)
+	' "$lockfile" >"$lockfile.tmp"
+	mv "$lockfile.tmp" "$lockfile"
+}
+
+ensure_tag_available_everywhere() {
+	local new_version="$1"
+	local tag="v$new_version"
+	local repo_path
+	local exists=0
+
+	for repo_path in "$ROOT_DIR" "$ROOT_DIR/packages/plugin" "$ROOT_DIR/packages/registry"; do
+		pushd "$repo_path" >/dev/null
+		if tag_exists "$tag"; then
+			echo "error: tag $tag already exists in $repo_path" >&2
+			exists=1
+		fi
+		popd >/dev/null
+	done
+
+	if [[ "$exists" -ne 0 ]]; then
+		exit 1
+	fi
 }
 
 check_changelog() {
@@ -219,6 +340,7 @@ release_submodule() {
 	local submodule_path="$1"
 	local new_version="$2"
 	local tag="v$new_version"
+	local branch
 
 	log "--- Releasing $submodule_path ---"
 
@@ -226,6 +348,7 @@ release_submodule() {
 
 	check_git_clean
 	check_main_branch
+	branch=$(git rev-parse --abbrev-ref HEAD)
 
 	if tag_exists "$tag"; then
 		echo "error: tag $tag already exists in $submodule_path" >&2
@@ -235,11 +358,21 @@ release_submodule() {
 
 	run_quality_checks "." || exit 1
 
-	update_package_version "." "$new_version"
-	commit_version_bump "chore(release): v$new_version"
+	if [[ -f "package.json" ]]; then
+		update_package_version "." "$new_version"
+		if $dry_run; then
+			log_dry "Commit version bump in $submodule_path"
+		elif git diff --quiet HEAD; then
+			log "No version change in $submodule_path (already $new_version), skipping commit"
+		else
+			commit_version_bump "chore(release): bump version to $new_version"
+		fi
+	else
+		log "No package.json in $submodule_path, skipping version bump commit"
+	fi
 
 	run git tag "$tag"
-	run git push origin "$(git rev-parse --abbrev-ref HEAD)"
+	run git push origin "$branch"
 	run git push origin "$tag"
 
 	popd >/dev/null
@@ -249,6 +382,7 @@ release_submodule() {
 release_root() {
 	local new_version="$1"
 	local tag="v$new_version"
+	local branch
 
 	log "--- Releasing root ---"
 
@@ -256,6 +390,7 @@ release_root() {
 
 	check_git_clean
 	check_main_branch
+	branch=$(git rev-parse --abbrev-ref HEAD)
 
 	if tag_exists "$tag"; then
 		echo "error: tag $tag already exists" >&2
@@ -267,18 +402,13 @@ release_root() {
 	fi
 
 	update_package_version "." "$new_version"
+	update_root_lockfile_version "$new_version"
 
 	git add packages/registry packages/plugin
-	commit_version_bump "chore(release): v$new_version
-
-Registry ($new_version):
-- Version bump
-
-Plugin:
-- Version bump"
+	commit_version_bump "chore(release): bump version to $new_version"
 
 	run git tag "$tag"
-	run git push origin "$(git rev-parse --abbrev-ref HEAD)"
+	run git push origin "$branch"
 	run git push origin "$tag"
 
 	log_ok "root released"
@@ -290,6 +420,15 @@ parse_args() {
 		-d | --dry-run)
 			dry_run=true
 			shift
+			;;
+		-b | --bump)
+			if [[ -z "${2:-}" ]]; then
+				echo "error: --bump requires a value (patch|minor|major)" >&2
+				exit 1
+			fi
+			bump_type="$2"
+			validate_bump_type "$bump_type"
+			shift 2
 			;;
 		-s | --skip-docs)
 			skip_docs=true
@@ -309,12 +448,13 @@ parse_args() {
 	done
 
 	version="${1:-}"
-	if [[ -z "$version" ]]; then
-		echo "error: version required" >&2
-		usage
+
+	if [[ -n "$version" && -n "$bump_type" ]]; then
+		echo "error: provide either <version> or --bump, not both" >&2
+		exit 1
 	fi
 
-	validate_version "$version"
+	resolve_target_version
 }
 
 main() {
@@ -323,6 +463,9 @@ main() {
 	cd "$ROOT_DIR"
 
 	log "Releasing version $version"
+	if [[ -n "$bump_type" ]]; then
+		log "Resolved by --bump $bump_type"
+	fi
 	$dry_run && log "(dry run mode)"
 	$skip_docs && log "(skipping docs check)"
 
@@ -336,6 +479,8 @@ main() {
 	if ! $skip_docs; then
 		check_changelog "$version" || exit 1
 	fi
+
+	ensure_tag_available_everywhere "$version"
 
 	confirm "Proceed with release $version?" || exit 0
 

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-02-27
+
+Patch release focused on release automation and picker quality-of-life improvements.
+
+### Plugin
+
+#### Added
+
+- Picker action to open the selected theme repository URL directly (`open_repo`, default `O`)
+- Picker install action now marks themes immediately after successful install
+- New picker action tests for repo URL copy/open and install mark behavior
+
+#### Changed
+
+- `theme_service.install()` now performs install-only behavior without implicitly applying themes
+
+### Monorepo
+
+#### Added
+
+- Release automation guide at `docs/release.md`
+- `--bump patch|minor|major` support in `scripts/release.sh`
+
+#### Changed
+
+- Release script now validates tag availability across root/plugin/registry before execution
+- Release script updates root lockfile version fields during version bumps
+- Makefile now exposes `release` and `release-dry` shortcuts
+
 ## [0.3.1] - 2026-02-27
 
 Patch release focused on picker resize behavior and polish.
@@ -194,6 +223,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.3.2]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.2.0...v0.2.1
