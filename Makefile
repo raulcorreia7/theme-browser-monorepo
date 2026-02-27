@@ -31,26 +31,26 @@ status:
 	@echo "=== packages/registry ===" && git -C packages/registry status --short --branch
 
 pipeline:
-	@npm run pipeline -w packages/registry
+	@pnpm --filter @theme-browser/registry pipeline
 	@echo "✓ Pipeline complete → packages/registry/artifacts/themes.json"
 
 sync:
-	@npm run sync -w packages/registry
+	@pnpm --filter @theme-browser/registry task:sync
 
 detect:
-	@npm run detect -w packages/registry
+	@pnpm --filter @theme-browser/registry task:detect
 
 merge:
-	@npm run merge -w packages/registry
+	@pnpm --filter @theme-browser/registry task:merge
 
 build:
-	@npm run build:themes -w packages/registry
+	@pnpm --filter @theme-browser/registry task:build
 
 validate:
-	@npm run validate -w packages/registry
+	@pnpm --filter @theme-browser/registry task:validate
 
 test:
-	@npm run test -w packages/registry
+	@pnpm --filter @theme-browser/registry test
 
 release:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
@@ -61,7 +61,7 @@ release-dry:
 	@./scripts/release.sh "$(VERSION)" --dry-run
 
 clean:
-	@npm run clean -w packages/registry
+	@pnpm --filter @theme-browser/registry clean
 	@rm -rf reports .cache
 	@$(MAKE) -C packages/plugin clean
 	@echo "✓ Cleaned"
