@@ -1,6 +1,6 @@
 {
   "name": "@theme-browser/monorepo",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
@@ -27,6 +27,8 @@
   },
   "packageManager": "pnpm@10.28.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

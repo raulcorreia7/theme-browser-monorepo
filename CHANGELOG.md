@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-02-27
+
+Patch release focused on registry release channels and Eldritch fork curation.
+
+### Plugin
+
+#### Added
+
+- Configurable registry channel option via `registry.channel` with `stable` and `latest` modes
+
+#### Changed
+
+- Registry sync now resolves `latest` channel assets from weekly `vX.Y.Z+YYYYMMDD` release tags
+- Plugin docs now describe stable versus latest registry channel behavior
+
+### Registry
+
+#### Changed
+
+- Release workflow now runs weekly on Wednesday and supports stable/latest channel dispatch
+- Latest channel releases now use SemVer build metadata tags (`vX.Y.Z+YYYYMMDD`)
+- Eldritch source was updated to prefer the `raulcorreia7/eldritch.nvim` fork in curated discovery
+
 ## [0.3.3] - 2026-02-27
 
 Patch release focused on command UX simplification and E2E stability.
@@ -251,6 +274,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.3.4]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.0...v0.3.1
