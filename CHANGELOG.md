@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-02-27
+
+Patch release focused on picker resize behavior and polish.
+
+### Plugin
+
+#### Fixed
+
+- Native picker now reflows and recenters when Neovim emits `VimResized`
+- Picker resize logic now safely clamps to very small editor dimensions
+- Picker resize autocmd is cleaned up when the picker window closes
+
+#### Added
+
+- Regression test coverage for picker resize reflow and autocmd cleanup behavior
+
+### Monorepo
+
+#### Changed
+
+- Version bumped to `0.3.1`
+- Plugin submodule updated with picker resize responsiveness fix
+
 ## [0.3.0] - 2026-02-27
 
 UX release focused on reducing command surface area and improving preview reliability.
@@ -171,6 +194,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.3.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.1.0...v0.2.0
