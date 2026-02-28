@@ -22,20 +22,19 @@ theme-browser-monorepo/
 
 | Command | Description |
 |---------|-------------|
-| `npm run sync` | Step 01: Sync themes from GitHub |
-| `npm run detect` | Step 02: Detect loading strategies |
-| `npm run merge` | Step 03: Merge sources |
-| `npm run build` | Step 04: Generate themes.json |
-| `npm run bundle` | Step 05: Bundle top themes for plugin |
-| `npm run pipeline` | Run all steps 01-04 |
-| `npm run validate` | Validate registry output |
-| `npm run verify` | Build + validate |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format with Prettier |
-| `npm run typecheck` | Type check TypeScript |
-| `npm run test` | Run registry tests |
-| `npm run test:plugin` | Run plugin tests |
-| `npm run clean` | Clean all artifacts |
+| `make pipeline` | Run full pipeline (sync → detect → merge → build) |
+| `make sync` | Step 01: Sync themes from GitHub |
+| `make detect` | Step 02: Detect loading strategies |
+| `make merge` | Step 03: Merge sources |
+| `make build` | Step 04: Generate themes.json |
+| `make validate` | Validate registry output |
+| `make test` | Run registry tests |
+| `make clean` | Clean all artifacts |
+| `pnpm task:bundle` | Step 05: Bundle top themes for plugin |
+| `pnpm lint` | Run ESLint |
+| `pnpm format` | Format with Prettier |
+| `pnpm typecheck` | Type check TypeScript |
+| `pnpm test:plugin` | Run plugin tests |
 
 ## Registry Setup
 
@@ -50,7 +49,7 @@ The TypeScript registry indexes Neovim colorschemes from GitHub and produces `th
 
 ```bash
 # 1. Install dependencies
-npm install
+pnpm install
 
 # 2. Configure GitHub token
 cp packages/registry/.env.example packages/registry/.env
@@ -58,7 +57,7 @@ cp packages/registry/.env.example packages/registry/.env
 source packages/registry/.env
 
 # 3. Run indexer
-npm run sync
+make sync
 ```
 
 ### Getting a GitHub Token

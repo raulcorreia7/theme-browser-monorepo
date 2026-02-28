@@ -27,32 +27,34 @@ make sync      # 01: Sync themes from GitHub → artifacts/index.json
 make detect    # 02: Detect strategies → sources/*.json
 make merge     # 03: Merge sources → overrides.json
 make build     # 04: Generate final themes.json
-make bundle    # 05: Generate plugin bundled registry
 make validate  # Validate strategy and quality constraints
 
-make pipeline  # Run all steps
+make pipeline  # Run all steps (sync → detect → merge → build)
 ```
 
-Or with npm:
+Or with pnpm (includes bundle step):
 
 ```bash
-npm run sync       # 01-sync-index
-npm run detect     # 02-detect-strategies --apply
-npm run merge      # 03-merge-sources
-npm run build      # 04-generate-themes
-npm run bundle     # 05-bundle-plugin-registry
-npm run validate   # Validate output
-npm run pipeline   # All steps
+pnpm task:sync      # 01-sync
+pnpm task:detect    # 02-detect --apply
+pnpm task:merge     # 03-merge
+pnpm task:build     # 04-build
+pnpm task:bundle    # 05-bundle (plugin registry)
+pnpm task:validate  # Validate output
+pnpm task:pipeline  # All steps
 ```
 
-## Scripts
+## Tasks
 
-| Script | Purpose | Key Options |
-|--------|---------|-------------|
-| 01-sync-index | Sync from GitHub | `-c, --config`, `-v, --verbose` |
-| 02-detect-strategies | Detect strategies | `-i, --index`, `-s, --sources`, `-n, --sample`, `-r, --repo`, `--apply` |
-| 03-merge-sources | Merge to overrides.json | `-s, --sources`, `-o, --output` |
-| 04-generate-themes | Generate themes.json | `-i, --index`, `-o, --overrides`, `-O, --output` |
+| Task File | Purpose | Key Options |
+|-----------|---------|-------------|
+| tasks/01-sync.ts | Sync from GitHub | `-c, --config`, `-v, --verbose` |
+| tasks/02-detect.ts | Detect strategies | `-i, --index`, `-s, --sources`, `-n, --sample`, `-r, --repo`, `--apply` |
+| tasks/03-merge.ts | Merge to overrides.json | `-s, --sources`, `-o, --output` |
+| tasks/04-build.ts | Generate themes.json | `-i, --index`, `-o, --overrides`, `-O, --output` |
+| tasks/05-bundle.ts | Bundle plugin registry | `-o, --output` |
+| tasks/06-manifest.ts | Generate manifest.json | |
+| tasks/07-top-themes.ts | Generate top 50 list | |
 
 ## Strategy Definitions
 
