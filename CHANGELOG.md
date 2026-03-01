@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-03-01
+
+Patch release fixing CI test runner exit code handling.
+
+### Plugin
+
+#### Fixed
+
+- Test runner now properly handles plenary exit codes for CI compatibility
+
 ## [0.4.2] - 2026-03-01
 
 Patch release fixing CI luacheck warnings.
@@ -348,6 +358,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.4.3]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.3.6...v0.4.0
