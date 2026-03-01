@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# release.sh - Create and push a new release
+# version.sh - Bump version, create tags, and optionally push releases
 #
-# Usage: release.sh <version> [options]
-#        release.sh --bump <patch|minor|major> [options]
+# Usage: version.sh <version> [options]
+#        version.sh --bump <patch|minor|major> [options]
 #   -d, --dry-run     Show what would be done without executing
 #   -b, --bump TYPE   Auto-calculate next version (patch|minor|major)
+#   -p, --push        Push commits and tags to remotes
 #   -s, --skip-docs   Skip documentation checks (use if already updated)
 #   -y, --yes         Skip confirmation prompt
 #   -h, --help        Show this help
 #
 # Examples:
-#   ./scripts/release.sh 0.2.0
-#   ./scripts/release.sh 0.3.0 --dry-run
-#   ./scripts/release.sh --bump minor
-#   ./scripts/release.sh 0.3.0 --yes
+#   ./scripts/version.sh 0.2.0
+#   ./scripts/version.sh 0.3.0 --dry-run
+#   ./scripts/version.sh --bump minor
+#   ./scripts/version.sh 0.3.0 --push
+#   ./scripts/version.sh --bump minor --push --yes
 #
 # Requirements: git, npm, jq
 #
@@ -23,8 +25,7 @@
 #   3. Updates version in all package.json files
 #   4. Runs format and lint checks
 #   5. Commits version bump
-#   6. Creates and pushes tags to all submodules
-#   7. Pushes commits to all remotes
+#   6. Creates tags in all submodules (use --push to push to remotes)
 
 set -euo pipefail
 
@@ -34,11 +35,12 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 dry_run=false
 skip_docs=false
 auto_confirm=false
+push=false
 bump_type=""
 version=""
 
 usage() {
-	sed -n 's/^# //p' "$0" | head -n 20
+	sed -n 's/^# //p' "$0" | head -n 25
 	exit 0
 }
 
@@ -342,7 +344,7 @@ release_submodule() {
 	local tag="v$new_version"
 	local branch
 
-	log "--- Releasing $submodule_path ---"
+	log "--- Versioning $submodule_path ---"
 
 	pushd "$ROOT_DIR/$submodule_path" >/dev/null
 
@@ -372,11 +374,16 @@ release_submodule() {
 	fi
 
 	run git tag "$tag"
-	run git push origin "$branch"
-	run git push origin "$tag"
+
+	if $push; then
+		run git push origin "$branch"
+		run git push origin "$tag"
+		log_ok "$submodule_path released and pushed"
+	else
+		log_ok "$submodule_path tagged (not pushed - use --push)"
+	fi
 
 	popd >/dev/null
-	log_ok "$submodule_path released"
 }
 
 release_root() {
@@ -384,7 +391,7 @@ release_root() {
 	local tag="v$new_version"
 	local branch
 
-	log "--- Releasing root ---"
+	log "--- Versioning root ---"
 
 	cd "$ROOT_DIR"
 
@@ -407,10 +414,14 @@ release_root() {
 	commit_version_bump "chore(release): bump version to $new_version"
 
 	run git tag "$tag"
-	run git push origin "$branch"
-	run git push origin "$tag"
 
-	log_ok "root released"
+	if $push; then
+		run git push origin "$branch"
+		run git push origin "$tag"
+		log_ok "root released and pushed"
+	else
+		log_ok "root tagged (not pushed - use --push)"
+	fi
 }
 
 parse_args() {
@@ -428,6 +439,10 @@ parse_args() {
 			bump_type="$2"
 			validate_bump_type "$bump_type"
 			shift 2
+			;;
+		-p | --push)
+			push=true
+			shift
 			;;
 		-s | --skip-docs)
 			skip_docs=true
@@ -461,11 +476,12 @@ main() {
 
 	cd "$ROOT_DIR"
 
-	log "Releasing version $version"
+	log "Versioning $version"
 	if [[ -n "$bump_type" ]]; then
 		log "Resolved by --bump $bump_type"
 	fi
 	$dry_run && log "(dry run mode)"
+	$push && log "(will push to remotes)" || log "(local only - use --push to push)"
 	$skip_docs && log "(skipping docs check)"
 
 	echo ""
@@ -481,14 +497,19 @@ main() {
 
 	ensure_tag_available_everywhere "$version"
 
-	confirm "Proceed with release $version?" || exit 0
+	confirm "Proceed with version $version?" || exit 0
 
 	release_submodule "packages/registry" "$version"
 	release_submodule "packages/plugin" "$version"
 	release_root "$version"
 
 	echo ""
-	log_ok "Release $version complete!"
+	if $push; then
+		log_ok "Release $version complete and pushed!"
+	else
+		log_ok "Version $version complete (local only)"
+		log "To push: git push origin --tags && git push origin"
+	fi
 }
 
 main "$@"

@@ -1,16 +1,21 @@
 # Release Automation
 
-This repository already includes a release script: `scripts/release.sh`.
+This repository includes scripts for versioning and releasing:
 
-It coordinates release steps across three repositories:
+- `scripts/version.sh` - Bump versions, create tags, and optionally push
+- `scripts/pipeline.sh` - Run full monorepo pipeline and sync registry to plugin
+
+## version.sh
+
+Coordinates versioning across three repositories:
 
 - root monorepo
 - `packages/plugin` sub-repo
 - `packages/registry` sub-repo
 
-## What the Script Automates
+### What the Script Does
 
-`scripts/release.sh` performs the following in order:
+`scripts/version.sh` performs the following in order:
 
 1. validates release inputs (`<version>` or `--bump`)
 2. validates semver and branch state (`main`/`master`)
@@ -19,35 +24,73 @@ It coordinates release steps across three repositories:
 5. validates `CHANGELOG.md` entry (unless `--skip-docs`)
 6. runs quality checks in sub-repos before tagging
 7. bumps versions where applicable
-8. commits, tags, and pushes each repository
+8. commits and tags each repository
+9. pushes commits and tags (only with `--push`)
 
-## Usage
+### Usage
 
 ```bash
-# explicit version
-./scripts/release.sh 0.3.1
+# explicit version (local only)
+./scripts/version.sh 0.4.0
 
 # auto-calculate next version from root package.json
-./scripts/release.sh --bump patch
-./scripts/release.sh --bump minor
-./scripts/release.sh --bump major
+./scripts/version.sh --bump patch
+./scripts/version.sh --bump minor
+./scripts/version.sh --bump major
 
 # preview without changes
-./scripts/release.sh --bump patch --dry-run
+./scripts/version.sh --bump minor --dry-run
+
+# push to remotes after versioning
+./scripts/version.sh --bump minor --push
+
+# full release with auto-confirm
+./scripts/version.sh --bump minor --push --yes
 
 # skip changelog validation (not recommended)
-./scripts/release.sh 0.3.1 --skip-docs
+./scripts/version.sh 0.4.0 --skip-docs
 ```
 
-## Makefile Shortcuts
+### Makefile Shortcuts
 
 ```bash
-make release VERSION=0.3.1
-make release-dry VERSION=0.3.1
+make version VERSION=0.4.0
+make version-dry VERSION=0.4.0
+```
+
+## pipeline.sh
+
+Runs the full monorepo pipeline and syncs registry data to the plugin:
+
+1. Runs the registry pipeline (sync → detect → merge → build → bundle → validate)
+2. Bundles `registry.json` to `packages/plugin/lua/theme-browser/data/`
+3. Optionally commits the plugin submodule pointer if changed
+
+### Usage
+
+```bash
+# run full pipeline
+./scripts/pipeline.sh
+
+# force refresh (ignore cache)
+./scripts/pipeline.sh --force
+
+# commit plugin submodule pointer after pipeline
+./scripts/pipeline.sh --commit
+
+# testing mode (isolated outputs)
+./scripts/pipeline.sh --testing
+```
+
+### Makefile Shortcuts
+
+```bash
+make pipeline
 ```
 
 ## Notes
 
 - Plugin is Lua-only and has no `package.json`; it is tagged at its current committed state.
-- Root lockfile metadata is updated during release to keep version fields aligned.
+- Root lockfile metadata is updated during versioning to keep version fields aligned.
 - If a tag already exists in any repo, the script exits early with an error.
+- Versioning is local by default; use `--push` to push to remotes.
