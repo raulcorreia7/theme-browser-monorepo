@@ -41,6 +41,7 @@ Release helpers:
 make verify-versioning
 make install-hooks
 make update-submodules
+make docker-build
 ```
 
 Release:
@@ -55,6 +56,7 @@ make version-dry VERSION=0.4.0
 
 ## Docs
 
+- [docs/automation.md](docs/automation.md) — scheduled runner and container deployment
 - [docs/release.md](docs/release.md) — release flow and guarantees
 - [packages/registry/README.md](packages/registry/README.md) — registry-local commands and outputs
 - [docs/theme-detection.md](docs/theme-detection.md) — registry stage debugging guide

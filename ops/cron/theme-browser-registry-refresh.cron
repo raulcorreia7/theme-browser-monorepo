@@ -1,0 +1,1 @@
+0 3 * * 0 docker run --rm --name theme-browser-registry-refresh --env-file /etc/theme-browser/registry-refresh.env -v /var/lib/theme-browser-refresh:/var/lib/theme-browser-refresh theme-browser-registry-refresh:local

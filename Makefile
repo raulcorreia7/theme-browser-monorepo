@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: all help status clean pipeline pipeline-testing validate test test-plugin verify verify-versioning install-hooks update-submodules version version-dry
+.PHONY: all help status clean pipeline pipeline-testing validate test test-plugin verify verify-versioning install-hooks update-submodules docker-build version version-dry
 
 all: verify
 
@@ -18,6 +18,7 @@ help:
 	@echo "  make verify-versioning   Check version/changelog/release metadata"
 	@echo "  make install-hooks       Configure local git hooks"
 	@echo "  make update-submodules   Fast-forward nested repos and stage pointers"
+	@echo "  make docker-build        Build the registry refresh runner image"
 	@echo ""
 	@echo "Versioning:"
 	@echo "  make version VERSION=0.4.0        Bump versions and create tags"
@@ -61,6 +62,9 @@ install-hooks:
 
 update-submodules:
 	@bash ./scripts/update-submodules.sh
+
+docker-build:
+	@bash ./scripts/build-registry-dockerfile.sh
 
 version:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }

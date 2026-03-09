@@ -1,0 +1,13 @@
+.git
+.github
+.cache
+node_modules
+packages/plugin
+packages/registry
+reports
+dist
+tmp
+*.log
+.env
+.env.local
+.env.*.local
