@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: all help status clean pipeline pipeline-testing validate test test-plugin verify verify-versioning install-hooks update-submodules docker-build version version-dry
+.PHONY: all help status clean refresh refresh-testing validate test test-plugin verify verify-versioning install-hooks update-submodules docker-build release release-dry
 
 all: verify
 
@@ -9,8 +9,8 @@ help:
 	@echo "theme-browser-monorepo"
 	@echo ""
 	@echo "Common:"
-	@echo "  make pipeline            Run the monorepo pipeline"
-	@echo "  make pipeline-testing    Run the pipeline in isolated testing mode"
+	@echo "  make refresh             Run the monorepo refresh flow"
+	@echo "  make refresh-testing     Run the refresh flow in isolated testing mode"
 	@echo "  make verify              Run the high-level repo verification flow"
 	@echo "  make validate            Validate registry output"
 	@echo "  make test                Run registry tests"
@@ -21,8 +21,8 @@ help:
 	@echo "  make docker-build        Build the registry refresh runner image"
 	@echo ""
 	@echo "Versioning:"
-	@echo "  make version VERSION=0.4.0        Bump versions and create tags"
-	@echo "  make version-dry VERSION=0.4.0    Preview the release"
+	@echo "  make release VERSION=0.4.0        Bump versions and create tags"
+	@echo "  make release-dry VERSION=0.4.0    Preview the release"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make status              Show git status"
@@ -33,11 +33,11 @@ status:
 	@echo ""
 	@echo "=== packages/registry ===" && git -C packages/registry status --short --branch
 
-pipeline:
-	@bash ./scripts/pipeline.sh
+refresh:
+	@bash ./scripts/refresh.sh
 
-pipeline-testing:
-	@bash ./scripts/pipeline.sh --testing
+refresh-testing:
+	@bash ./scripts/refresh.sh --testing
 
 validate:
 	@pnpm --filter @theme-browser/registry validate
@@ -66,13 +66,13 @@ update-submodules:
 docker-build:
 	@bash ./scripts/build-registry-dockerfile.sh
 
-version:
+release:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
-	@./scripts/version.sh "$(VERSION)"
+	@bash ./scripts/release.sh "$(VERSION)"
 
-version-dry:
+release-dry:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
-	@./scripts/version.sh "$(VERSION)" --dry-run
+	@bash ./scripts/release.sh "$(VERSION)" --dry-run
 
 clean:
 	@pnpm --filter @theme-browser/registry clean

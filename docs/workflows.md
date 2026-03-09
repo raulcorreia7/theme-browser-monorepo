@@ -49,7 +49,7 @@ Use refresh when:
 
 Refresh should:
 
-1. run pipeline
+1. run refresh
 2. run verify
 3. commit changed artifacts
 4. update root submodule pointers
@@ -82,7 +82,7 @@ Release should:
 ## Suggested Release Input
 
 ```bash
-make version VERSION=0.4.3
+make release VERSION=0.4.3
 ```
 
 From that single input, derive:

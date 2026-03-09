@@ -224,8 +224,8 @@ main() {
 	log "Install dependencies"
 	run_in_dir "$repo_dir" pnpm install --frozen-lockfile --store-dir "$pnpm_store_dir"
 
-	log "Run pipeline"
-	run_in_dir "$repo_dir" make pipeline
+	log "Run refresh"
+	run_in_dir "$repo_dir" make refresh
 
 	log "Run verification"
 	run_in_dir "$repo_dir" make verify

@@ -67,11 +67,11 @@ ensure_changelog_entry() {
 
 ensure_no_legacy_release_script_refs() {
 	local matches
-	matches="$(rg -n 'scripts/release\.sh' "$ROOT_DIR/README.md" "$ROOT_DIR/docs" || true)"
+	matches="$(rg -n 'scripts/version\.sh' "$ROOT_DIR/README.md" "$ROOT_DIR/docs" || true)"
 	if [[ -n "$matches" ]]; then
-		log_fail "legacy scripts/release.sh references remain:\n$matches"
+		log_fail "legacy scripts/version.sh references remain:\n$matches"
 	else
-		log_ok "release docs reference scripts/version.sh"
+		log_ok "release docs reference scripts/release.sh"
 	fi
 }
 

@@ -14,7 +14,7 @@ The intended automation scope is:
 
 The intended non-goal is:
 
-- no automatic `make version`
+- no automatic `make release`
 - no automatic tagging or release publishing
 
 ## Path Of Least Resistance
@@ -110,7 +110,7 @@ The runner:
 2. checks out the configured root, registry, and plugin branches
 3. fast-forwards submodules
 4. runs `pnpm install --frozen-lockfile`
-5. runs `make pipeline`
+5. runs `make refresh`
 6. runs `make verify`
 7. commits and pushes:
    - registry repo if changed

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# version.sh - Prepare and tag a coordinated release across the workspace
+# release.sh - Prepare and tag a coordinated release across the workspace
 #
-# Usage: version.sh <version> [options]
-#        version.sh --bump <patch|minor|major> [options]
+# Usage: release.sh <version> [options]
+#        release.sh --bump <patch|minor|major> [options]
 #   -d, --dry-run     Show what would be done without executing
 #   -b, --bump TYPE   Auto-calculate next version (patch|minor|major)
 #   -p, --push        Push commits and tags to remotes
@@ -11,11 +11,11 @@
 #   -h, --help        Show this help
 #
 # Examples:
-#   ./scripts/version.sh 0.2.0
-#   ./scripts/version.sh 0.3.0 --dry-run
-#   ./scripts/version.sh --bump minor
-#   ./scripts/version.sh 0.3.0 --push
-#   ./scripts/version.sh --bump minor --push --yes
+#   ./scripts/release.sh 0.2.0
+#   ./scripts/release.sh 0.3.0 --dry-run
+#   ./scripts/release.sh --bump minor
+#   ./scripts/release.sh 0.3.0 --push
+#   ./scripts/release.sh --bump minor --push --yes
 #
 # Requirements: git, pnpm, jq
 #
@@ -286,9 +286,9 @@ update_plugin_compatibility() {
 
 run_version_metadata_verification() {
 	if $dry_run; then
-		log_dry "Run version metadata verification"
+		log_dry "Run release metadata verification"
 	else
-		log "Running version metadata verification..."
+		log "Running release metadata verification..."
 		bash "$ROOT_DIR/scripts/verify-versioning.sh"
 	fi
 }
@@ -380,7 +380,7 @@ release_submodule() {
 	local tag="v$new_version"
 	local branch
 
-	log "--- Versioning $submodule_path ---"
+	log "--- Releasing $submodule_path ---"
 
 	pushd "$ROOT_DIR/$submodule_path" >/dev/null
 
@@ -433,7 +433,7 @@ release_root() {
 	local tag="v$new_version"
 	local branch
 
-	log "--- Versioning root ---"
+	log "--- Releasing root ---"
 
 	cd "$ROOT_DIR"
 
@@ -519,7 +519,7 @@ main() {
 
 	cd "$ROOT_DIR"
 
-	log "Versioning $version"
+	log "Releasing $version"
 	if [[ -n "$bump_type" ]]; then
 		log "Resolved by --bump $bump_type"
 	fi

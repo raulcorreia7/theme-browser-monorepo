@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# pipeline.sh - Run the monorepo pipeline and optionally commit the plugin pointer
+# refresh.sh - Run the monorepo refresh flow and optionally commit the plugin pointer
 #
-# Usage: pipeline.sh [options]
+# Usage: refresh.sh [options]
 #   -f, --force       Force sync refresh (ignore cache)
 #   -n, --no-cache    Disable detect cache
 #   -t, --testing     Testing mode (isolated outputs)
@@ -10,17 +10,17 @@
 #   -h, --help        Show this help
 #
 # This script:
-#   1. Runs the registry package pipeline
+#   1. Runs the registry package refresh flow
 #   2. Checks whether the plugin submodule pointer changed
 #   3. Optionally commits the plugin submodule pointer update
 #
 # Requirements: pnpm, git
 #
 # Examples:
-#   ./scripts/pipeline.sh
-#   ./scripts/pipeline.sh --force
-#   ./scripts/pipeline.sh --commit
-#   ./scripts/pipeline.sh --testing
+#   ./scripts/refresh.sh
+#   ./scripts/refresh.sh --force
+#   ./scripts/refresh.sh --commit
+#   ./scripts/refresh.sh --testing
 
 set -euo pipefail
 
@@ -123,7 +123,7 @@ main() {
 
 	cd "$ROOT_DIR"
 
-	log "Running monorepo pipeline"
+	log "Running monorepo refresh"
 	$dry_run && log "(dry run mode)"
 	$testing && log "(testing mode)"
 
@@ -132,12 +132,12 @@ main() {
 	$no_cache && pipeline_args+=("--no-cache")
 	$testing && pipeline_args+=("--testing")
 
-	log "Step 1/2: Run registry pipeline"
+	log "Step 1/2: Run registry refresh"
 	if $dry_run; then
 		log_dry "pnpm --filter @theme-browser/registry pipeline ${pipeline_args[*]}"
 	else
 		pnpm --filter @theme-browser/registry pipeline "${pipeline_args[@]}"
-		log_ok "Registry pipeline complete"
+		log_ok "Registry refresh complete"
 	fi
 
 	if $testing; then
@@ -159,7 +159,7 @@ main() {
 	fi
 
 	echo ""
-	log_ok "Pipeline complete!"
+		log_ok "Refresh complete!"
 	echo "Outputs:"
 	echo "  - packages/registry/artifacts/themes.json"
 	echo "  - packages/registry/artifacts/manifest.json"

@@ -22,8 +22,8 @@ pnpm install
 Primary commands:
 
 ```bash
-make pipeline
-make pipeline-testing
+make refresh
+make refresh-testing
 make verify
 ```
 
@@ -47,9 +47,9 @@ make docker-build
 Release:
 
 ```bash
-make version VERSION=0.4.0
+make release VERSION=0.4.0
 # or preview it first
-make version-dry VERSION=0.4.0
+make release-dry VERSION=0.4.0
 ```
 
 `make verify` is the main local preflight. It runs `verify-versioning`, registry tests, plugin verification, and registry validation. `make verify-versioning` is the focused metadata check when you only want release/version alignment.

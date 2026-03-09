@@ -5,7 +5,7 @@ How to debug the registry detection and build stages without running the full mo
 The normal top-level flow stays:
 
 ```bash
-make pipeline
+make refresh
 make verify
 ```
 

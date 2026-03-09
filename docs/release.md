@@ -6,7 +6,7 @@ When you create a release from this workspace, the release should fail early if 
 
 ## Preflight Checks
 
-`make verify-versioning` and `scripts/version.sh` fail early if any of these drift:
+`make verify-versioning` and `scripts/release.sh` fail early if any of these drift:
 
 - root and registry versions match
 - plugin registry compatibility matches the registry major/minor line
@@ -18,7 +18,7 @@ When you create a release from this workspace, the release should fail early if 
 
 ## Release Updates
 
-During release, `scripts/version.sh` also:
+During release, `scripts/release.sh` also:
 
 - checks for a clean git state
 - checks that the target tag does not already exist
@@ -33,8 +33,8 @@ During release, `scripts/version.sh` also:
 2. Update the plugin changelog entry in [packages/plugin/CHANGELOG.md](../packages/plugin/CHANGELOG.md).
 3. Run `make verify`.
 4. Run `make update-submodules` if you want the latest upstream plugin/registry state first.
-5. Run `make version-dry VERSION=X.Y.Z`.
-6. Run `make version VERSION=X.Y.Z`.
+5. Run `make release-dry VERSION=X.Y.Z`.
+6. Run `make release VERSION=X.Y.Z`.
 
 ## Hooks
 
