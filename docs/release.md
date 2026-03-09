@@ -64,6 +64,7 @@ That script:
 
 ## Related Docs
 
+- Workflow model and source-of-truth direction: [workflows.md](./workflows.md)
 - Registry-local commands and outputs: [packages/registry/README.md](../packages/registry/README.md)
 - Detection stage debugging: [theme-detection.md](./theme-detection.md)
 - Plugin usage and release asset behavior: [packages/plugin/README.md](../packages/plugin/README.md)

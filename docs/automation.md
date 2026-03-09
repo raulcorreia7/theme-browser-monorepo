@@ -191,6 +191,7 @@ That example runs the job weekly at `03:00` every Sunday in the host timezone.
 
 ## Related Files
 
+- workflow model: [workflows.md](./workflows.md)
 - image: [docker/registry.Dockerfile](../docker/registry.Dockerfile)
 - runner: [registry-refresh.sh](../scripts/registry-refresh.sh)
 - build helper: [build-registry-dockerfile.sh](../scripts/build-registry-dockerfile.sh)

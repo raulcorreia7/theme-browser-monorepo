@@ -58,6 +58,7 @@ make version-dry VERSION=0.4.0
 
 - [docs/automation.md](docs/automation.md) — scheduled runner and container deployment
 - [docs/release.md](docs/release.md) — release flow and guarantees
+- [docs/workflows.md](docs/workflows.md) — release vs refresh workflow model
 - [packages/registry/README.md](packages/registry/README.md) — registry-local commands and outputs
 - [docs/theme-detection.md](docs/theme-detection.md) — registry stage debugging guide
 - [docs/theme-detection-heuristics.md](docs/theme-detection-heuristics.md) — detection heuristics and scoring details
