@@ -32,6 +32,10 @@ from a checked-out workspace on a `systemd` timer.
 That keeps scheduling simple and avoids maintaining a container image before the
 deployment shape settles.
 
+If you already prefer containerized jobs, the repo still includes a Dockerfile
+and image build helper. Treat that as an optional deployment path, not the
+default operational model.
+
 ## Runtime Requirements
 
 Host packages:
@@ -82,6 +86,8 @@ the monorepo, registry repo, and plugin repo.
 
 ## Run It Manually
 
+### Host Workspace
+
 Assume the workspace is checked out at `/opt/theme-browser-monorepo` on the host.
 
 ```bash
@@ -103,6 +109,33 @@ GIT_AUTHOR_EMAIL="bot@example.com" \
 bash ./scripts/registry-refresh.sh --dry-run
 ```
 
+### Optional Docker Image
+
+Build the image from the checked-out workspace:
+
+```bash
+bash ./scripts/build-registry-dockerfile.sh
+```
+
+Run it manually:
+
+```bash
+docker run --rm \
+  --env-file /etc/theme-browser/registry-refresh.env \
+  -v /var/lib/theme-browser-refresh:/var/lib/theme-browser-refresh \
+  theme-browser-registry-refresh:local
+```
+
+Dry run:
+
+```bash
+docker run --rm \
+  --env-file /etc/theme-browser/registry-refresh.env \
+  -v /var/lib/theme-browser-refresh:/var/lib/theme-browser-refresh \
+  theme-browser-registry-refresh:local \
+  --dry-run
+```
+
 ## Scheduling
 
 Preferred: `systemd` timer on the host.
@@ -112,6 +145,7 @@ The checked-out workspace path used by the examples is `/opt/theme-browser-monor
 Fallbacks:
 
 - host cron that runs the refresh script
+- host scheduler that runs the Docker image instead
 - another scheduler that invokes the same script with the same environment
 
 Avoid converting this into a long-running service. Keep it as a short-lived
@@ -123,12 +157,15 @@ Keep the first deployment simple:
 
 - rely on the script exit code
 - inspect `journalctl` or captured stdout/stderr logs
+- for containerized runs, inspect `docker logs`
 - add notifications later if the job proves stable and useful
 
 ## Related Files
 
 - `workflows.md` - refresh vs release boundaries
 - `../scripts/registry-refresh.sh` - runner entry point
+- `../scripts/build-registry-dockerfile.sh` - optional image build helper
+- `../docker/registry.Dockerfile` - optional runner image definition
 - `../ops/examples/registry-refresh.env.example` - sample environment file
 - `../ops/cron/theme-browser-registry-refresh.cron` - cron example
 - `../ops/systemd/theme-browser-registry-refresh.service` - service unit

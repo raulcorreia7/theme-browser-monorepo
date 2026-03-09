@@ -64,6 +64,8 @@ Automation helpers:
 ```bash
 make install-hooks
 make update-submodules
+# optional image build helper
+bash ./scripts/build-registry-dockerfile.sh
 ```
 
 ## Commands
@@ -80,6 +82,7 @@ make update-submodules
 | `make release-dry VERSION=X.Y.Z` | Preview a coordinated release |
 | `make release VERSION=X.Y.Z` | Bump versions and create release tags |
 | `make update-submodules` | Fast-forward nested repos and stage new pointers |
+| `bash ./scripts/build-registry-dockerfile.sh` | Build the optional refresh runner image |
 | `make clean` | Remove generated artifacts and package build outputs |
 
 Run `make help` to print the same command surface from the CLI.
