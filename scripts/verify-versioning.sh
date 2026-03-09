@@ -35,8 +35,8 @@ ensure_gitmodules_entries() {
 		return
 	fi
 
-	if grep -q 'submodule "packages/plugin"' "$gitmodules" \
-		&& grep -q 'submodule "packages/registry"' "$gitmodules"; then
+	if grep -q 'submodule "packages/plugin"' "$gitmodules" &&
+		grep -q 'submodule "packages/registry"' "$gitmodules"; then
 		log_ok ".gitmodules declares plugin and registry submodules"
 	else
 		log_fail ".gitmodules is missing plugin or registry submodule entries"
@@ -76,12 +76,18 @@ ensure_no_legacy_release_script_refs() {
 }
 
 main() {
-	require_file "$ROOT_DIR/package.json"
-	require_file "$ROOT_DIR/packages/registry/package.json"
-	require_file "$ROOT_DIR/CHANGELOG.md"
-	require_file "$ROOT_DIR/packages/plugin/CHANGELOG.md"
-	require_file "$ROOT_DIR/packages/plugin/lua/theme-browser/registry/sync.lua"
+	require_file "$ROOT_DIR/package.json" || true
+	require_file "$ROOT_DIR/packages/registry/package.json" || true
+	require_file "$ROOT_DIR/CHANGELOG.md" || true
+	require_file "$ROOT_DIR/packages/plugin/CHANGELOG.md" || true
+	require_file "$ROOT_DIR/packages/plugin/lua/theme-browser/registry/sync.lua" || true
 	ensure_gitmodules_entries
+
+	if [[ "$failures" -ne 0 ]]; then
+		echo "" >&2
+		echo "verify-versioning: $failures issue(s) found" >&2
+		exit 1
+	fi
 
 	local root_version
 	local registry_version

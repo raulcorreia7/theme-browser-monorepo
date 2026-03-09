@@ -4,6 +4,18 @@
   "private": true,
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
+  "scripts": {
+    "task:sync": "pnpm --filter @theme-browser/registry sync",
+    "task:detect": "pnpm --filter @theme-browser/registry detect",
+    "task:detect:dryrun": "pnpm --filter @theme-browser/registry detect:dry-run",
+    "task:merge": "pnpm --filter @theme-browser/registry merge",
+    "task:build": "pnpm --filter @theme-browser/registry themes",
+    "task:bundle": "pnpm --filter @theme-browser/registry bundle",
+    "task:pipeline": "pnpm --filter @theme-browser/registry pipeline",
+    "task:validate": "pnpm --filter @theme-browser/registry validate",
+    "verify": "pnpm --filter @theme-browser/registry verify",
+    "clean": "pnpm --filter @theme-browser/registry clean && rm -rf reports .cache"
+  },
   "engines": {
     "node": ">=20"
   },

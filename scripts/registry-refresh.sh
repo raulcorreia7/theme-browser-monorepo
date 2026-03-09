@@ -25,6 +25,25 @@ set -euo pipefail
 dry_run=false
 RUN_DIR=""
 
+build_authenticated_url() {
+	local url="$1"
+	local auth_user="$2"
+	local token="$3"
+
+	case "$url" in
+	https://github.com/*)
+		echo "https://${auth_user}:${token}@github.com/${url#https://github.com/}"
+		return 0
+		;;
+	git@github.com:*)
+		echo "https://${auth_user}:${token}@github.com/${url#git@github.com:}"
+		return 0
+		;;
+	esac
+
+	echo "$url"
+}
+
 usage() {
 	sed -n 's/^# //p' "$0" | head -n 19
 	exit 0
@@ -150,6 +169,32 @@ prepare_branch() {
 	run git -C "$path" checkout -B "$branch" "origin/$branch"
 }
 
+configure_repo_identity() {
+	local path="$1"
+	run git -C "$path" config user.name "$GIT_AUTHOR_NAME"
+	run git -C "$path" config user.email "$GIT_AUTHOR_EMAIL"
+}
+
+configure_repo_remote() {
+	local path="$1"
+	local auth_user="$2"
+	local remote_url
+	local authenticated_url
+
+	remote_url="$(git -C "$path" remote get-url origin)"
+	authenticated_url="$(build_authenticated_url "$remote_url" "$auth_user" "$GITHUB_TOKEN")"
+	if [[ "$authenticated_url" != "$remote_url" ]]; then
+		run git -C "$path" remote set-url origin "$authenticated_url"
+	fi
+}
+
+configure_repo_access() {
+	local path="$1"
+	local auth_user="$2"
+	configure_repo_identity "$path"
+	configure_repo_remote "$path" "$auth_user"
+}
+
 commit_if_changed() {
 	local path="$1"
 	local message="$2"
@@ -192,24 +237,30 @@ main() {
 	local plugin_branch="${PLUGIN_BRANCH:-main}"
 	local work_root="${WORK_ROOT:-/var/lib/theme-browser-refresh}"
 	local pnpm_store_dir="${PNPM_STORE_DIR:-$work_root/pnpm-store}"
+	local repo_dir
 
 	trap 'on_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
 	trap cleanup EXIT
 
-	mkdir -p "$work_root" "$pnpm_store_dir"
-	RUN_DIR="$(mktemp -d "$work_root/run.XXXXXX")"
-
-	git config --global user.name "$GIT_AUTHOR_NAME"
-	git config --global user.email "$GIT_AUTHOR_EMAIL"
-	git config --global url."https://${auth_user}:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+	if $dry_run; then
+		repo_dir="$work_root/repo-dry-run"
+	else
+		mkdir -p "$work_root" "$pnpm_store_dir"
+		RUN_DIR="$(mktemp -d "$work_root/run.XXXXXX")"
+		repo_dir="$RUN_DIR/repo"
+	fi
 
 	show_versions
 	show_config "$monorepo_url" "$monorepo_branch" "$registry_branch" "$plugin_branch" "$work_root" "$pnpm_store_dir"
 
 	log "Clone monorepo"
-	run git clone --branch "$monorepo_branch" --recurse-submodules "$monorepo_url" "$RUN_DIR/repo"
+	run git clone --branch "$monorepo_branch" --recurse-submodules "$monorepo_url" "$repo_dir"
 
-	local repo_dir="$RUN_DIR/repo"
+	if ! $dry_run; then
+		configure_repo_access "$repo_dir" "$auth_user"
+		configure_repo_access "$repo_dir/packages/registry" "$auth_user"
+		configure_repo_access "$repo_dir/packages/plugin" "$auth_user"
+	fi
 
 	log "Prepare branches"
 	run git -C "$repo_dir" checkout "$monorepo_branch"

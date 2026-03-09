@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# refresh.sh - Run the monorepo refresh flow and optionally commit the plugin pointer
+# refresh.sh - Run the monorepo refresh flow and optionally commit plugin refresh changes
 #
 # Usage: refresh.sh [options]
 #   -f, --force       Force sync refresh (ignore cache)
 #   -n, --no-cache    Disable detect cache
 #   -t, --testing     Testing mode (isolated outputs)
-#   -c, --commit      Commit plugin submodule pointer if changed
+#   -c, --commit      Commit plugin refresh in the submodule and stage the root pointer update
 #   -d, --dry-run     Show what would be done without executing
 #   -h, --help        Show this help
 #
 # This script:
 #   1. Runs the registry package refresh flow
-#   2. Checks whether the plugin submodule pointer changed
-#   3. Optionally commits the plugin submodule pointer update
+#   2. Checks whether the plugin bundled registry changed
+#   3. Optionally commits the plugin refresh and the root submodule pointer update
 #
 # Requirements: pnpm, git
 #
@@ -32,6 +32,8 @@ no_cache=false
 testing=false
 commit=false
 dry_run=false
+PLUGIN_DIR="$ROOT_DIR/packages/plugin"
+PLUGIN_REGISTRY_PATH="lua/theme-browser/data/registry.json"
 
 usage() {
 	sed -n 's/^# //p' "$0" | head -n 22
@@ -91,31 +93,90 @@ parse_args() {
 	done
 }
 
-check_plugin_changed() {
-	if git -C "$ROOT_DIR" diff --quiet -- packages/plugin; then
-		return 1
-	else
-		return 0
+extract_status_path() {
+	local line="$1"
+	local path="${line:3}"
+	if [[ "$path" == *" -> "* ]]; then
+		path="${path##* -> }"
 	fi
+	echo "$path"
 }
 
-commit_plugin_pointer() {
+list_unexpected_changes() {
+	local repo_path="$1"
+	shift
+	local allowed_paths=("$@")
+	local line
+
+	while IFS= read -r line; do
+		[[ -z "$line" ]] && continue
+		local path
+		local allowed=false
+		path="$(extract_status_path "$line")"
+
+		for allowed_path in "${allowed_paths[@]}"; do
+			if [[ "$path" == "$allowed_path" ]]; then
+				allowed=true
+				break
+			fi
+		done
+
+		if ! $allowed; then
+			echo "$line"
+		fi
+	done < <(git -C "$repo_path" status --porcelain --untracked-files=all)
+}
+
+plugin_registry_changed() {
+	[[ -n "$(git -C "$PLUGIN_DIR" status --porcelain -- "$PLUGIN_REGISTRY_PATH")" ]]
+}
+
+root_plugin_pointer_changed() {
+	[[ -n "$(git -C "$ROOT_DIR" status --porcelain -- packages/plugin)" ]]
+}
+
+commit_plugin_refresh() {
 	if $dry_run; then
-		log_dry "Commit plugin submodule pointer update"
+		log_dry "Commit plugin refresh in packages/plugin"
+		log_dry "Commit root submodule pointer update"
 		return 0
 	fi
 
-	if ! check_plugin_changed; then
-		log "No plugin submodule changes to commit"
+	if ! plugin_registry_changed; then
+		log "No plugin registry changes to commit"
 		return 0
 	fi
 
-	log "Committing plugin submodule pointer update"
-	git -C "$ROOT_DIR" add packages/plugin
-	git -C "$ROOT_DIR" commit -m "chore(plugin): update submodule pointer
+	local plugin_unexpected_changes
+	plugin_unexpected_changes="$(list_unexpected_changes "$PLUGIN_DIR" "$PLUGIN_REGISTRY_PATH")"
+	if [[ -n "$plugin_unexpected_changes" ]]; then
+		echo "error: packages/plugin has unrelated changes; commit manually:" >&2
+		echo "$plugin_unexpected_changes" >&2
+		exit 1
+	fi
 
-Updated registry.json with latest theme data from pipeline."
-	log_ok "Plugin submodule pointer committed"
+	log "Committing bundled registry refresh in packages/plugin"
+	git -C "$PLUGIN_DIR" add -- "$PLUGIN_REGISTRY_PATH"
+	git -C "$PLUGIN_DIR" commit -m "chore: refresh bundled registry"
+	log_ok "Plugin refresh committed"
+
+	local root_unexpected_changes
+	root_unexpected_changes="$(list_unexpected_changes "$ROOT_DIR" "packages/plugin")"
+	if [[ -n "$root_unexpected_changes" ]]; then
+		log_warn "Root repo has unrelated changes; leaving submodule pointer commit for manual review"
+		echo "$root_unexpected_changes" >&2
+		return 0
+	fi
+
+	if ! root_plugin_pointer_changed; then
+		log "No root submodule pointer changes to commit"
+		return 0
+	fi
+
+	log "Committing root submodule pointer update"
+	git -C "$ROOT_DIR" add -- packages/plugin
+	git -C "$ROOT_DIR" commit -m "chore(plugin): update submodule pointer"
+	log_ok "Root submodule pointer committed"
 }
 
 main() {
@@ -141,25 +202,25 @@ main() {
 	fi
 
 	if $testing; then
-		log_warn "Testing mode: skipping plugin submodule commit"
+		log_warn "Testing mode: skipping plugin refresh commit"
 		return 0
 	fi
 
-	log "Step 2/2: Review plugin pointer update"
-	if check_plugin_changed; then
+	log "Step 2/2: Review plugin refresh"
+	if plugin_registry_changed; then
 		log_ok "Plugin data updated (registry.json bundled)"
 		if $commit; then
-			commit_plugin_pointer
+			commit_plugin_refresh
 		else
-			log_warn "Plugin submodule has changes. Run with --commit to commit, or commit manually."
-			log "To commit: git add packages/plugin && git commit -m 'chore(plugin): update submodule pointer'"
+			log_warn "Plugin repo has bundled registry changes. Run with --commit, or commit manually."
+			log "Manual flow: commit packages/plugin first, then commit the root packages/plugin pointer"
 		fi
 	else
 		log_ok "No plugin changes detected"
 	fi
 
 	echo ""
-		log_ok "Refresh complete!"
+	log_ok "Refresh complete!"
 	echo "Outputs:"
 	echo "  - packages/registry/artifacts/themes.json"
 	echo "  - packages/registry/artifacts/manifest.json"

@@ -1,5 +1,7 @@
 # Automation Runner
 
+See [README.md](./README.md) for the full guide/runbook index.
+
 ## Goal
 
 Run the registry refresh on a schedule without automating releases.

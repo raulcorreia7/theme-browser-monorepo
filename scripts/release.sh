@@ -80,7 +80,7 @@ validate_bump_type() {
 }
 
 check_git_clean() {
-	if ! git diff --quiet HEAD 2>/dev/null; then
+	if [[ -n "$(git status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
 		echo "error: uncommitted changes in $(pwd)" >&2
 		git status --short
 		exit 1
@@ -353,12 +353,27 @@ run_quality_checks() {
 
 commit_version_bump() {
 	local msg="$1"
+	shift
+
+	if [[ "$#" -eq 0 ]]; then
+		echo "error: commit_version_bump requires at least one path" >&2
+		exit 1
+	fi
+
 	if $dry_run; then
 		log_dry "Commit: $msg"
-	else
-		git add -A
-		git commit -m "$msg"
+		log_dry "Stage paths: $*"
+		return 0
 	fi
+
+	git add -- "$@"
+
+	if git diff --cached --quiet; then
+		log "No staged changes for: $*"
+		return 0
+	fi
+
+	git commit -m "$msg"
 }
 
 confirm() {
@@ -402,17 +417,19 @@ release_submodule() {
 		update_plugin_compatibility "$new_version"
 		if $dry_run; then
 			log_dry "Commit version bump in $submodule_path"
-		elif git diff --quiet HEAD; then
+		elif git diff --quiet HEAD -- "lua/theme-browser/registry/sync.lua"; then
 			log "No compatibility change in $submodule_path, skipping commit"
 		else
-			commit_version_bump "chore(release): align compatibility to $new_version"
+			commit_version_bump \
+				"chore(release): align compatibility to $new_version" \
+				"lua/theme-browser/registry/sync.lua"
 		fi
 	else
 		log "No package.json in $submodule_path, skipping version bump commit"
 	fi
 
-	if [[ -f "package.json" ]] && ! $dry_run && ! git diff --quiet HEAD; then
-		commit_version_bump "chore(release): bump version to $new_version"
+	if [[ -f "package.json" ]] && ! $dry_run && ! git diff --quiet HEAD -- "package.json"; then
+		commit_version_bump "chore(release): bump version to $new_version" "package.json"
 	fi
 
 	run git tag "$tag"
@@ -453,8 +470,12 @@ release_root() {
 	update_root_lockfile_version "$new_version"
 	run_version_metadata_verification
 
-	git add packages/registry packages/plugin
-	commit_version_bump "chore(release): bump version to $new_version"
+	local root_commit_paths=("package.json" "packages/registry" "packages/plugin")
+	if [[ -f "$ROOT_DIR/package-lock.json" ]]; then
+		root_commit_paths+=("package-lock.json")
+	fi
+
+	commit_version_bump "chore(release): bump version to $new_version" "${root_commit_paths[@]}"
 
 	run git tag "$tag"
 
@@ -541,6 +562,10 @@ main() {
 	run_version_metadata_verification
 
 	ensure_tag_available_everywhere "$version"
+
+	pushd "$ROOT_DIR" >/dev/null
+	check_git_clean
+	popd >/dev/null
 
 	confirm "Proceed with version $version?" || exit 0
 

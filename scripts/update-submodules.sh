@@ -61,22 +61,55 @@ parse_args() {
 
 require_clean_repo() {
 	local path="$1"
-	if ! git -C "$path" diff --quiet HEAD 2>/dev/null; then
+	if [[ -n "$(git -C "$path" status --porcelain --untracked-files=normal 2>/dev/null)" ]]; then
 		echo "error: uncommitted changes in $path" >&2
 		git -C "$path" status --short
 		exit 1
 	fi
 }
 
-require_branch_checkout() {
+configured_branch() {
+	local path="$1"
+	git -C "$ROOT_DIR" config -f .gitmodules --get "submodule.${path}.branch" 2>/dev/null || true
+}
+
+detect_default_branch() {
 	local path="$1"
 	local branch
 	branch="$(git -C "$path" symbolic-ref --quiet --short HEAD || true)"
+	if [[ -n "$branch" ]]; then
+		echo "$branch"
+		return 0
+	fi
+
+	branch="$(configured_branch "${path#"$ROOT_DIR/"}")"
+	if [[ -n "$branch" ]]; then
+		echo "$branch"
+		return 0
+	fi
+
+	git -C "$path" remote set-head origin --auto >/dev/null 2>&1 || true
+	branch="$(git -C "$path" symbolic-ref --quiet --short refs/remotes/origin/HEAD || true)"
 	if [[ -z "$branch" ]]; then
-		echo "error: $path is in detached HEAD state" >&2
+		echo "error: unable to determine branch for $path" >&2
 		exit 1
 	fi
-	echo "$branch"
+	echo "${branch#origin/}"
+}
+
+ensure_branch_checkout() {
+	local path="$1"
+	local branch="$2"
+	local current_branch
+	current_branch="$(git -C "$path" symbolic-ref --quiet --short HEAD || true)"
+
+	if [[ "$current_branch" == "$branch" ]]; then
+		return 0
+	fi
+
+	log "Attach $path to $branch"
+	run git -C "$path" fetch origin "$branch"
+	run git -C "$path" checkout -B "$branch" "origin/$branch"
 }
 
 main() {
@@ -90,7 +123,8 @@ main() {
 	for path in "${submodules[@]}"; do
 		require_clean_repo "$ROOT_DIR/$path"
 		local branch
-		branch="$(require_branch_checkout "$ROOT_DIR/$path")"
+		branch="$(detect_default_branch "$ROOT_DIR/$path")"
+		ensure_branch_checkout "$ROOT_DIR/$path" "$branch"
 
 		log "Update $path on $branch"
 		run git -C "$ROOT_DIR/$path" fetch origin "$branch"
