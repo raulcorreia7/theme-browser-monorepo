@@ -1,0 +1,6 @@
+[submodule "packages/plugin"]
+	path = packages/plugin
+	url = https://github.com/raulcorreia7/theme-browser.nvim.git
+[submodule "packages/registry"]
+	path = packages/registry
+	url = https://github.com/raulcorreia7/theme-browser-registry.git

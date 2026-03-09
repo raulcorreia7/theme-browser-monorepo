@@ -1,5 +1,6 @@
 .DS_Store
 *.log
+.nvimlog
 node_modules/
 .cache/
 reports/

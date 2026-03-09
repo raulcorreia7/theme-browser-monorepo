@@ -4,24 +4,6 @@
   "private": true,
   "type": "module",
   "description": "Monorepo for theme-browser.nvim and registry",
-  "scripts": {
-    "task:sync": "pnpm --filter @theme-browser/registry task:sync",
-    "task:detect": "pnpm --filter @theme-browser/registry task:detect",
-    "task:detect:dryrun": "pnpm --filter @theme-browser/registry task:detect:dryrun",
-    "task:merge": "pnpm --filter @theme-browser/registry task:merge",
-    "task:build": "pnpm --filter @theme-browser/registry task:build",
-    "task:bundle": "pnpm --filter @theme-browser/registry task:bundle",
-    "task:pipeline": "pnpm --filter @theme-browser/registry task:pipeline",
-    "task:validate": "pnpm --filter @theme-browser/registry task:validate",
-    "verify": "pnpm task:build && pnpm task:validate",
-    "lint": "pnpm --filter @theme-browser/registry lint",
-    "typecheck": "pnpm --filter @theme-browser/registry typecheck",
-    "format": "pnpm --filter @theme-browser/registry format",
-    "format:check": "pnpm --filter @theme-browser/registry format:check",
-    "test": "pnpm --filter @theme-browser/registry test",
-    "test:plugin": "make -C packages/plugin test",
-    "clean": "pnpm --filter @theme-browser/registry clean && rm -rf packages/registry/artifacts reports .cache"
-  },
   "engines": {
     "node": ">=20"
   },

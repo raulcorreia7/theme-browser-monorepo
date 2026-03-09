@@ -1,96 +1,69 @@
-# Release Automation
+# Release Flow
 
-This repository includes scripts for versioning and releasing:
+## Goal
 
-- `scripts/version.sh` - Bump versions, create tags, and optionally push
-- `scripts/pipeline.sh` - Run full monorepo pipeline and sync registry to plugin
+When you create a release from this workspace, the release should fail early if the repos are out of sync.
 
-## version.sh
+## Preflight Checks
 
-Coordinates versioning across three repositories:
+`make verify-versioning` and `scripts/version.sh` fail early if any of these drift:
 
-- root monorepo
-- `packages/plugin` sub-repo
-- `packages/registry` sub-repo
+- root and registry versions match
+- plugin registry compatibility matches the registry major/minor line
+- root and plugin changelogs contain the release entry
+- root repo declares the nested repos in `.gitmodules`
+- docs do not reference the removed legacy release script
 
-### What the Script Does
+`make verify` is the main local preflight if you want metadata checks, registry verification, and plugin verification before releasing.
 
-`scripts/version.sh` performs the following in order:
+## Release Updates
 
-1. validates release inputs (`<version>` or `--bump`)
-2. validates semver and branch state (`main`/`master`)
-3. verifies clean git state in each repository
-4. checks that the target tag does not already exist in root/plugin/registry
-5. validates `CHANGELOG.md` entry (unless `--skip-docs`)
-6. runs quality checks in sub-repos before tagging
-7. bumps versions where applicable
-8. commits and tags each repository
-9. pushes commits and tags (only with `--push`)
+During release, `scripts/version.sh` also:
 
-### Usage
+- checks for a clean git state
+- checks that the target tag does not already exist
+- updates `packages/registry/package.json`
+- updates the plugin compatibility series in `packages/plugin/lua/theme-browser/registry/sync.lua`
+- updates the root version and lockfile metadata
+- tags the registry repo, plugin repo, and root repo
 
-```bash
-# explicit version (local only)
-./scripts/version.sh 0.4.0
+## Recommended Flow
 
-# auto-calculate next version from root package.json
-./scripts/version.sh --bump patch
-./scripts/version.sh --bump minor
-./scripts/version.sh --bump major
+1. Update the root changelog entry in [CHANGELOG.md](../CHANGELOG.md).
+2. Update the plugin changelog entry in [packages/plugin/CHANGELOG.md](../packages/plugin/CHANGELOG.md).
+3. Run `make verify`.
+4. Run `make update-submodules` if you want the latest upstream plugin/registry state first.
+5. Run `make version-dry VERSION=X.Y.Z`.
+6. Run `make version VERSION=X.Y.Z`.
 
-# preview without changes
-./scripts/version.sh --bump minor --dry-run
+## Hooks
 
-# push to remotes after versioning
-./scripts/version.sh --bump minor --push
-
-# full release with auto-confirm
-./scripts/version.sh --bump minor --push --yes
-
-# skip changelog validation (not recommended)
-./scripts/version.sh 0.4.0 --skip-docs
-```
-
-### Makefile Shortcuts
+Install local hooks once:
 
 ```bash
-make version VERSION=0.4.0
-make version-dry VERSION=0.4.0
+make install-hooks
 ```
 
-## pipeline.sh
+That configures a `pre-push` hook which runs the same versioning verification before pushing.
 
-Runs the full monorepo pipeline and syncs registry data to the plugin:
+## Updating Nested Repos
 
-1. Runs the registry pipeline (sync → detect → merge → build → bundle → validate)
-2. Bundles `registry.json` to `packages/plugin/lua/theme-browser/data/`
-3. Optionally commits the plugin submodule pointer if changed
-
-### Usage
+Use:
 
 ```bash
-# run full pipeline
-./scripts/pipeline.sh
-
-# force refresh (ignore cache)
-./scripts/pipeline.sh --force
-
-# commit plugin submodule pointer after pipeline
-./scripts/pipeline.sh --commit
-
-# testing mode (isolated outputs)
-./scripts/pipeline.sh --testing
+make update-submodules
 ```
 
-### Makefile Shortcuts
+That script:
 
-```bash
-make pipeline
-```
+- syncs `.gitmodules`
+- initializes missing submodules
+- requires clean nested repos
+- fast-forwards each nested repo on its current branch
+- stages the updated submodule pointers in the root repo
 
-## Notes
+## Related Docs
 
-- Plugin is Lua-only and has no `package.json`; it is tagged at its current committed state.
-- Root lockfile metadata is updated during versioning to keep version fields aligned.
-- If a tag already exists in any repo, the script exits early with an error.
-- Versioning is local by default; use `--push` to push to remotes.
+- Registry-local commands and outputs: [packages/registry/README.md](../packages/registry/README.md)
+- Detection stage debugging: [theme-detection.md](./theme-detection.md)
+- Plugin usage and release asset behavior: [packages/plugin/README.md](../packages/plugin/README.md)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# version.sh - Bump version, create tags, and optionally push releases
+# version.sh - Prepare and tag a coordinated release across the workspace
 #
 # Usage: version.sh <version> [options]
 #        version.sh --bump <patch|minor|major> [options]
@@ -17,15 +17,15 @@
 #   ./scripts/version.sh 0.3.0 --push
 #   ./scripts/version.sh --bump minor --push --yes
 #
-# Requirements: git, npm, jq
+# Requirements: git, pnpm, jq
 #
 # This script:
-#   1. Validates version format and git state
-#   2. Checks for CHANGELOG.md entry
-#   3. Updates version in all package.json files
-#   4. Runs format and lint checks
-#   5. Commits version bump
-#   6. Creates tags in all submodules (use --push to push to remotes)
+#   1. Validates version format, git state, changelogs, and sync metadata
+#   2. Updates root and registry package versions
+#   3. Updates plugin registry compatibility
+#   4. Runs package quality checks
+#   5. Commits version bump(s) and creates tags
+#   6. Optionally pushes commits and tags to remotes
 
 set -euo pipefail
 
@@ -58,15 +58,6 @@ log_ok() {
 
 log_warn() {
 	echo "⚠ $*" >&2
-}
-
-run() {
-	if $dry_run; then
-		log_dry "$*"
-	else
-		log "$*"
-		"$@"
-	fi
 }
 
 validate_version() {
@@ -216,22 +207,23 @@ ensure_tag_available_everywhere() {
 	fi
 }
 
-check_changelog() {
+check_changelog_entry() {
 	local new_version="$1"
-	local changelog="$ROOT_DIR/CHANGELOG.md"
+	local changelog="$2"
+	local label="$3"
 
 	if [[ ! -f "$changelog" ]]; then
-		log_warn "CHANGELOG.md not found at root"
+		log_warn "$label changelog not found at $changelog"
 		return 1
 	fi
 
 	if grep -q "## \[$new_version\]" "$changelog"; then
-		log_ok "CHANGELOG.md has entry for $new_version"
+		log_ok "$label changelog has entry for $new_version"
 		return 0
 	else
-		log_warn "CHANGELOG.md missing entry for $new_version"
+		log_warn "$label changelog missing entry for $new_version"
 		echo ""
-		echo "Add an entry to CHANGELOG.md:"
+		echo "Add an entry to $changelog:"
 		echo ""
 		echo "## [$new_version] - $(date +%Y-%m-%d)"
 		echo ""
@@ -248,12 +240,56 @@ check_changelog() {
 	fi
 }
 
+check_changelogs() {
+	local new_version="$1"
+
+	check_changelog_entry "$new_version" "$ROOT_DIR/CHANGELOG.md" "root" || return 1
+	check_changelog_entry "$new_version" "$ROOT_DIR/packages/plugin/CHANGELOG.md" "plugin" || return 1
+}
+
 get_current_version() {
 	local pkg_json="$1"
 	if [[ -f "$pkg_json" ]]; then
 		jq -r '.version' "$pkg_json"
 	else
 		echo "unknown"
+	fi
+}
+
+version_series() {
+	local version="$1"
+	echo "${version%.*}"
+}
+
+update_plugin_compatibility() {
+	local new_version="$1"
+	local series
+	local plugin_sync="$ROOT_DIR/packages/plugin/lua/theme-browser/registry/sync.lua"
+
+	series="$(version_series "$new_version")"
+
+	if [[ ! -f "$plugin_sync" ]]; then
+		echo "error: plugin sync file not found: $plugin_sync" >&2
+		exit 1
+	fi
+
+	if $dry_run; then
+		log_dry "Update plugin compatibility series to $series in $plugin_sync"
+		return 0
+	fi
+
+	log "Set plugin compatibility series to $series"
+	sed "s/^local COMPATIBLE_VERSION = \".*\"$/local COMPATIBLE_VERSION = \"$series\"/" \
+		"$plugin_sync" >"$plugin_sync.tmp"
+	mv "$plugin_sync.tmp" "$plugin_sync"
+}
+
+run_version_metadata_verification() {
+	if $dry_run; then
+		log_dry "Run version metadata verification"
+	else
+		log "Running version metadata verification..."
+		bash "$ROOT_DIR/scripts/verify-versioning.sh"
 	fi
 }
 
@@ -287,8 +323,8 @@ run_quality_checks() {
 
 	if [[ -f "package.json" ]] && grep -q '"format:check"' package.json 2>/dev/null; then
 		log "Running format:check..."
-		npm run format:check || {
-			log_warn "Format check failed. Run 'npm run format' to fix."
+		pnpm run format:check || {
+			log_warn "Format check failed. Run 'pnpm run format' to fix."
 			popd >/dev/null
 			return 1
 		}
@@ -296,7 +332,7 @@ run_quality_checks() {
 
 	if [[ -f "package.json" ]] && grep -q '"lint"' package.json 2>/dev/null; then
 		log "Running lint..."
-		npm run lint || {
+		pnpm run lint || {
 			log_warn "Lint check failed."
 			popd >/dev/null
 			return 1
@@ -305,7 +341,7 @@ run_quality_checks() {
 
 	if [[ -f "package.json" ]] && grep -q '"typecheck"' package.json 2>/dev/null; then
 		log "Running typecheck..."
-		npm run typecheck || {
+		pnpm run typecheck || {
 			log_warn "Typecheck failed."
 			popd >/dev/null
 			return 1
@@ -362,15 +398,21 @@ release_submodule() {
 
 	if [[ -f "package.json" ]]; then
 		update_package_version "." "$new_version"
+	elif [[ "$submodule_path" == "packages/plugin" ]]; then
+		update_plugin_compatibility "$new_version"
 		if $dry_run; then
 			log_dry "Commit version bump in $submodule_path"
 		elif git diff --quiet HEAD; then
-			log "No version change in $submodule_path (already $new_version), skipping commit"
+			log "No compatibility change in $submodule_path, skipping commit"
 		else
-			commit_version_bump "chore(release): bump version to $new_version"
+			commit_version_bump "chore(release): align compatibility to $new_version"
 		fi
 	else
 		log "No package.json in $submodule_path, skipping version bump commit"
+	fi
+
+	if [[ -f "package.json" ]] && ! $dry_run && ! git diff --quiet HEAD; then
+		commit_version_bump "chore(release): bump version to $new_version"
 	fi
 
 	run git tag "$tag"
@@ -404,11 +446,12 @@ release_root() {
 	fi
 
 	if ! $skip_docs; then
-		check_changelog "$new_version" || exit 1
+		check_changelogs "$new_version" || exit 1
 	fi
 
 	update_package_version "." "$new_version"
 	update_root_lockfile_version "$new_version"
+	run_version_metadata_verification
 
 	git add packages/registry packages/plugin
 	commit_version_bump "chore(release): bump version to $new_version"
@@ -492,8 +535,10 @@ main() {
 	echo ""
 
 	if ! $skip_docs; then
-		check_changelog "$version" || exit 1
+		check_changelogs "$version" || exit 1
 	fi
+
+	run_version_metadata_verification
 
 	ensure_tag_available_everywhere "$version"
 
