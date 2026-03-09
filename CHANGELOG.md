@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-03-09
+
+Patch release focused on Docker refresh runner ergonomics and operator docs.
+
+### Monorepo
+
+#### Added
+
+- Added `scripts/run-registry-docker.sh` as a thin helper for running the
+  refresh runner image with env-file and work-root defaults.
+
+#### Changed
+
+- Updated the root automation docs to make the Docker helper discoverable from
+  the main README and docs index.
+- Clarified `docs/automation.md` so the documented Docker helper options match
+  the refresh runner's real supported flags.
+
+### Registry
+
+#### Changed
+
+- Kept the registry README focused on package-local usage while pointing Docker
+  refresh operations to the root runbooks.
+
+### Plugin
+
+#### Fixed
+
+- Escaped command table separators in the plugin README so command aliases render
+  correctly in Markdown tables.
+
+#### Changed
+
+- Removed monorepo-only related-docs navigation from the package README so the
+  plugin repo stays standalone.
+
 ## [0.4.4] - 2026-03-09
 
 Patch release tightening release automation, refreshing docs, and updating the
@@ -392,6 +429,7 @@ A major refactor focused on code quality, architecture, and developer experience
 - CI/CD workflows for both packages
 - Basic documentation and configuration files
 
+[0.4.5]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/raulcorreia7/theme-browser-monorepo/compare/v0.4.1...v0.4.2
