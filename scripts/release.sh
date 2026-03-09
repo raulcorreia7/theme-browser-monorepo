@@ -60,6 +60,15 @@ log_warn() {
 	echo "⚠ $*" >&2
 }
 
+run() {
+	if $dry_run; then
+		log_dry "$*"
+		return 0
+	fi
+
+	"$@"
+}
+
 validate_version() {
 	local v="$1"
 	if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
