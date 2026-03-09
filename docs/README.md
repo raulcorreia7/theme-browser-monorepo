@@ -19,8 +19,23 @@ inside product docs.
 | Doc | Audience | Use it when | Freshness trigger |
 |-----|----------|-------------|-------------------|
 | `release.md` | Release owner | You are preparing or verifying a coordinated release | Release script, changelog policy, or version rules change |
-| `automation.md` | Ops owner | You are running the scheduled refresh job | Runner image, env vars, or commit flow changes |
+| `automation.md` | Ops owner | You are running the scheduled refresh job | Runner scripts, image helpers, env vars, or commit flow changes |
 | `theme-detection.md` | Registry maintainer | You are debugging a specific pipeline stage | Stage scripts, output paths, or debug commands change |
+
+## Review Priority
+
+Review these first when time is limited.
+
+| Priority | Doc | Why it comes first | Owner | Review by |
+|----------|-----|--------------------|-------|-----------|
+| P0 | `../README.md` | Root entry point for setup, make targets, and doc discovery | Workspace maintainer | Same change as root workflow updates |
+| P0 | `../packages/plugin/README.md` | Main user-facing install, command, and persistence guide | Plugin maintainer | Same change as plugin UX or default changes |
+| P0 | `../packages/registry/README.md` | Operator entry point for registry setup, outputs, and commands | Registry maintainer | Same change as pipeline or output changes |
+| P1 | `release.md` | Release mistakes are costly and block coordinated cuts | Release owner | Before every release |
+| P1 | `automation.md` | Scheduled refresh drift can break unattended jobs | Ops owner | Same change as runner, image, or env changes |
+| P2 | `workflows.md` | Explains ownership boundaries between refresh and release | Workspace maintainer | Same change as workflow boundaries |
+| P2 | `theme-detection.md` | Debug reference for stage-level registry work | Registry maintainer | Same change as stage scripts or output paths |
+| P3 | `theme-detection-heuristics.md` | Useful when debugging strategy picks, but not a first-stop guide | Registry maintainer | Same change as scoring, tie-breaks, or hints |
 
 ## Reference
 
@@ -50,8 +65,9 @@ Review docs in the same change whenever you touch any of these:
 ## Maintenance Cadence
 
 - Same change: update the touched guide when operator steps or outputs change.
+- Weekly ops sweep: review `automation.md` and the files it links before the
+  scheduled refresh job changes owner, host path, env, or image behavior.
 - Before every release: review `release.md`, the root `README.md`, and both
   package READMEs.
-- After pipeline changes: review `automation.md`, `theme-detection.md`, and
-  `packages/registry/README.md`.
-- Monthly: do a short link and redundancy sweep to remove stale content.
+- Monthly: do a short link and redundancy sweep to remove stale content and
+  collapse duplicate guidance back into `docs/README.md`.

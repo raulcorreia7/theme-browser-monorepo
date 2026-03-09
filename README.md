@@ -66,6 +66,7 @@ make install-hooks
 make update-submodules
 # optional image build helper
 bash ./scripts/build-registry-dockerfile.sh
+bash ./scripts/run-registry-docker.sh --dry-run
 ```
 
 ## Commands
@@ -83,6 +84,7 @@ bash ./scripts/build-registry-dockerfile.sh
 | `make release VERSION=X.Y.Z` | Bump versions and create release tags |
 | `make update-submodules` | Fast-forward nested repos and stage new pointers |
 | `bash ./scripts/build-registry-dockerfile.sh` | Build the optional refresh runner image |
+| `bash ./scripts/run-registry-docker.sh` | Run the optional refresh runner image |
 | `make clean` | Remove generated artifacts and package build outputs |
 
 Run `make help` to print the same command surface from the CLI.
@@ -113,14 +115,13 @@ configuration, and deeper troubleshooting stay in each package.
 
 ## Docs
 
-- `docs/README.md` - documentation map and freshness rules
-- `docs/workflows.md` - refresh vs release model
-- `docs/release.md` - coordinated release runbook
-- `docs/automation.md` - scheduled refresh runner guide
-- `docs/theme-detection.md` - registry stage debugging guide
-- `docs/theme-detection-heuristics.md` - detection scoring and tie-breaks
-- `packages/registry/README.md` - registry package commands and outputs
-- `packages/plugin/README.md` - plugin install, usage, and config entry points
+- Start with `docs/README.md` for the current documentation map, review
+  priority, and freshness rules.
+- Use `docs/automation.md` for scheduled refresh operations and Docker helper
+  usage.
+- Use `docs/release.md` for coordinated versioning and tag flow.
+- Use `packages/registry/README.md` and `packages/plugin/README.md` for
+  package-local setup, commands, and troubleshooting.
 
 ## License
 

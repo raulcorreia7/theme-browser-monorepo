@@ -117,6 +117,25 @@ Build the image from the checked-out workspace:
 bash ./scripts/build-registry-dockerfile.sh
 ```
 
+Run the helper script:
+
+```bash
+bash ./scripts/run-registry-docker.sh
+```
+
+Dry run:
+
+```bash
+bash ./scripts/run-registry-docker.sh --dry-run
+```
+
+Use env-style runner overrides from the helper:
+
+```bash
+bash ./scripts/run-registry-docker.sh --skip-push
+bash ./scripts/run-registry-docker.sh --skip-submodule-update
+```
+
 Run it manually:
 
 ```bash
@@ -162,9 +181,12 @@ Keep the first deployment simple:
 
 ## Related Files
 
+- `../README.md` - root entry point for operators
+- `README.md` - documentation map and review priority
 - `workflows.md` - refresh vs release boundaries
 - `../scripts/registry-refresh.sh` - runner entry point
 - `../scripts/build-registry-dockerfile.sh` - optional image build helper
+- `../scripts/run-registry-docker.sh` - optional image run helper
 - `../docker/registry.Dockerfile` - optional runner image definition
 - `../ops/examples/registry-refresh.env.example` - sample environment file
 - `../ops/cron/theme-browser-registry-refresh.cron` - cron example
