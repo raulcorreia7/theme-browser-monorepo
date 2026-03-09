@@ -1,25 +1,41 @@
 # theme-browser-monorepo
 
-Workspace for the two upstream repos:
+Monorepo for the `theme-browser.nvim` plugin and the `@theme-browser/registry`
+indexer.
 
-- `packages/plugin` → `theme-browser.nvim`
-- `packages/registry` → `theme-browser-registry`
-
-The root repo exists to make local development, release preparation, and cross-repo consistency checks simpler.
-Root commands orchestrate multiple repos; package READMEs are the source of truth for package-local commands.
-The canonical root interface is `make`.
-
-## Clone
+## Quick Start
 
 ```bash
 git clone --recurse-submodules https://github.com/raulcorreia7/theme-browser-monorepo.git
 cd theme-browser-monorepo
 pnpm install
+make verify
 ```
 
-## Main Workflows
+## Features
 
-Primary commands:
+- One root workspace for cross-repo refresh, verification, and release work.
+- Root `make` targets for the common operator flows.
+- Nested package READMEs for package-local setup, commands, and troubleshooting.
+- Runbooks for refresh automation, release coordination, and registry debugging.
+
+## Installation
+
+Prerequisites:
+
+- Node.js 20+
+- pnpm 10+
+- Git
+- Neovim (for plugin verification)
+
+Registry development also needs a GitHub token in
+`packages/registry/.env` when commands hit the GitHub API.
+
+## Usage
+
+Use the root `Makefile` as the canonical workspace interface.
+
+Common workflows:
 
 ```bash
 make refresh
@@ -27,43 +43,83 @@ make refresh-testing
 make verify
 ```
 
-Legacy `pnpm task:*` aliases still exist for older local scripts, but `make` remains the preferred root interface.
-
 Focused checks:
 
 ```bash
 make test
 make validate
 make test-plugin
+make verify-versioning
 ```
 
-Release helpers:
+Release flow:
 
 ```bash
-make verify-versioning
+make release-dry VERSION=X.Y.Z
+make release VERSION=X.Y.Z
+```
+
+Automation helpers:
+
+```bash
 make install-hooks
 make update-submodules
-make docker-build
 ```
 
-Release:
+## Commands
 
-```bash
-make release VERSION=0.4.0
-# or preview it first
-make release-dry VERSION=0.4.0
+| Command | Use it when |
+|---------|-------------|
+| `make refresh` | Regenerate registry artifacts and the bundled plugin registry |
+| `make refresh-testing` | Run the refresh flow with isolated testing outputs |
+| `make verify` | Run versioning checks, registry tests, plugin verification, and registry validation |
+| `make test` | Run registry tests only |
+| `make validate` | Validate generated registry output |
+| `make test-plugin` | Run plugin verification only |
+| `make verify-versioning` | Check changelog, version, and compatibility alignment |
+| `make release-dry VERSION=X.Y.Z` | Preview a coordinated release |
+| `make release VERSION=X.Y.Z` | Bump versions and create release tags |
+| `make update-submodules` | Fast-forward nested repos and stage new pointers |
+| `make clean` | Remove generated artifacts and package build outputs |
+
+Run `make help` to print the same command surface from the CLI.
+
+## Architecture
+
+```text
+theme-browser-monorepo/
+|- README.md                Root operator entry point
+|- docs/                    Runbooks and product knowledge
+|- scripts/                 Root workflow scripts
+`- packages/
+   |- registry/             Theme discovery, generation, validation
+   `- plugin/               Neovim plugin and bundled registry consumer
 ```
 
-`make verify` is the main local preflight. It runs `verify-versioning`, registry tests, plugin verification, and registry validation against the current generated outputs. `make verify-versioning` is the focused metadata check when you only want release/version alignment.
+The root repo orchestrates shared workflows. Package-specific behavior,
+configuration, and deeper troubleshooting stay in each package.
+
+## Configuration
+
+- Root workflows do not use a root `.env` file.
+- Registry runtime configuration lives in `packages/registry/config/registry.json`.
+- Registry secrets and local API credentials belong in
+  `packages/registry/.env`.
+- Plugin user configuration is documented in
+  `packages/plugin/docs/configuration.md`.
 
 ## Docs
 
-- [docs/README.md](docs/README.md) — guide/runbook index and freshness triggers
-- [docs/automation.md](docs/automation.md) — scheduled runner and container deployment
-- [docs/release.md](docs/release.md) — release flow, preflight checks, and script entry points
-- [docs/workflows.md](docs/workflows.md) — release vs refresh workflow model
-- [packages/registry/README.md](packages/registry/README.md) — registry-local commands, outputs, and debugging links
-- [docs/theme-detection.md](docs/theme-detection.md) — registry stage debugging guide
-- [docs/theme-detection-heuristics.md](docs/theme-detection-heuristics.md) — detection heuristics and scoring details
-- [packages/plugin/README.md](packages/plugin/README.md) — plugin usage
-- [CHANGELOG.md](CHANGELOG.md) — monorepo changes
+- `docs/README.md` - documentation map and freshness rules
+- `docs/workflows.md` - refresh vs release model
+- `docs/release.md` - coordinated release runbook
+- `docs/automation.md` - scheduled refresh runner guide
+- `docs/theme-detection.md` - registry stage debugging guide
+- `docs/theme-detection-heuristics.md` - detection scoring and tie-breaks
+- `packages/registry/README.md` - registry package commands and outputs
+- `packages/plugin/README.md` - plugin install, usage, and config entry points
+
+## License
+
+See the nested package repositories for their license files and release
+metadata.

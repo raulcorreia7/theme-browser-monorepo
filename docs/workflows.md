@@ -1,107 +1,65 @@
 # Workflows
 
-## Goal
+Keep refresh and release separate.
 
-Keep `refresh` and `release` as separate workflows, with one release input and the monorepo acting only as orchestrator.
-
-## Target Model
-
-```mermaid
-flowchart TD
-  A[VERSION=X.Y.Z<br/>single release input] --> B[orchestrator scripts]
-  B --> C[root metadata]
-  B --> D[registry version]
-  B --> E[plugin compatibility]
-  B --> F[changelog checks]
-  B --> G[tags]
-```
-
-The monorepo does not own release metadata.
-It only propagates one explicit release input.
+`refresh` is data maintenance. `release` is version and tag management.
 
 ## Workflow Split
 
-```mermaid
-flowchart LR
-  A[refresh] --> B[regenerate registry data]
-  B --> C[verify]
-  C --> D[commit data changes]
-  D --> E[push]
-
-  F[release] --> G[VERSION=X.Y.Z]
-  G --> H[verify clean state]
-  H --> I[update derived version fields]
-  I --> J[commit and tag]
-  J --> K[push]
-```
-
-`refresh` is data-only.
-`release` is version/tag-only.
+| Workflow | Trigger | Changes allowed | Must not do |
+|----------|---------|-----------------|-------------|
+| `refresh` | Upstream repo drift, star changes, detection improvements, bundled registry refresh | Registry artifacts, bundled plugin registry, submodule pointers | Bump versions, edit changelogs, create tags |
+| `release` | Plugin behavior change, registry contract change, compatibility change, intentional stable cut | Version metadata, compatibility series, tags, release commits | Smuggle in unrelated data churn |
 
 ## Refresh
 
-Use refresh when:
+Use refresh when you want the latest registry data without creating a new tagged
+release.
 
-- upstream repos changed
-- stars changed
-- detection improved
-- bundled plugin fallback needs a new snapshot
+Expected flow:
 
-Refresh should:
-
-1. run refresh
-2. run verify
-3. commit changed artifacts
-4. update root submodule pointers
+1. run `make refresh`
+2. run `make verify`
+3. commit changed data in nested repos if needed
+4. stage and commit root submodule pointers
 5. push
-
-Refresh should not:
-
-- bump versions
-- edit changelogs
-- create tags
 
 ## Release
 
-Use release when:
+Use release when the plugin or registry needs a new coordinated stable version.
 
-- plugin behavior changes
-- registry schema/output contract changes
-- compatibility changes
-- you intentionally want a tagged stable version
-
-Release should:
+Expected flow:
 
 1. choose `VERSION=X.Y.Z`
 2. verify changelog entries
-3. derive all version fields from that one input
-4. commit downstream repos
-5. update root submodule pointers
-6. tag and push
+3. derive root version, registry version, and plugin compatibility from that one input
+4. run quality checks
+5. commit and tag nested repos
+6. commit and tag the root repo
+7. push
 
-## Suggested Release Input
+## Source Of Truth
+
+Release metadata is driven from one explicit version input:
 
 ```bash
-make release VERSION=0.4.3
+make release VERSION=X.Y.Z
 ```
 
-From that single input, derive:
+That one value propagates to:
 
 - root version
-- registry version
+- registry package version
 - plugin compatibility series
-- release tags
+- matching git tags
 
-## Why This Is Cleaner
+## Why The Split Exists
 
-```mermaid
-flowchart TD
-  A[weekly data drift] --> B[refresh]
-  C[code or contract change] --> D[release]
-```
+This keeps weekly data drift out of the release process and keeps versioning
+intentional.
 
-This prevents:
+Without this split, it becomes hard to tell whether a new commit reflects:
 
-- noisy release bumps for star-count changes
-- manual version edits in multiple repos
-- confusion about whether new data means a new release
+- fresh registry data,
+- a real user-facing plugin change,
+- or a compatibility boundary that deserves a tagged release.

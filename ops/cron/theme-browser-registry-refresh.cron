@@ -1,1 +1,1 @@
-0 3 * * 0 docker run --rm --name theme-browser-registry-refresh --env-file /etc/theme-browser/registry-refresh.env -v /var/lib/theme-browser-refresh:/var/lib/theme-browser-refresh theme-browser-registry-refresh:local
+0 3 * * 0 cd /opt/theme-browser-monorepo && /usr/bin/env bash ./scripts/registry-refresh.sh >> /var/log/theme-browser-registry-refresh.log 2>&1

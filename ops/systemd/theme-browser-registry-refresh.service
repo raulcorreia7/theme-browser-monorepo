@@ -1,12 +1,13 @@
 [Unit]
 Description=Refresh theme-browser registry data
-After=docker.service
-Requires=docker.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
+WorkingDirectory=/opt/theme-browser-monorepo
 EnvironmentFile=/etc/theme-browser/registry-refresh.env
-ExecStart=/usr/bin/docker run --rm --name theme-browser-registry-refresh --env-file /etc/theme-browser/registry-refresh.env -v /var/lib/theme-browser-refresh:/var/lib/theme-browser-refresh theme-browser-registry-refresh:local
+ExecStart=/usr/bin/env bash ./scripts/registry-refresh.sh
 
 [Install]
 WantedBy=multi-user.target
