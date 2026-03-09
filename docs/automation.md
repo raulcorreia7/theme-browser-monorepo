@@ -36,18 +36,23 @@ Container base:
 
 System packages installed in the image:
 
+- shell and transport:
 - `bash`
 - `ca-certificates`
 - `curl`
 - `git`
-- `jq`
-- `lua5.1`
-- `make`
-- `neovim`
 - `openssh-client`
-- `python3`
+
+- verification and tooling:
+- `jq`
 - `ripgrep`
-- `g++`
+- `lua5.1`
+- `neovim`
+
+- build/runtime dependencies:
+- `build-essential`
+- `make`
+- `python3`
 
 Why these are included:
 
@@ -56,7 +61,7 @@ Why these are included:
 - `jq` and `ripgrep` for root verification scripts
 - `lua5.1` for plugin `luac` syntax checks
 - `neovim` for plugin verification inside `make verify`
-- `python3` and `g++` for native Node dependencies such as `better-sqlite3`
+- `python3` and `build-essential` for native Node dependencies such as `better-sqlite3`
 
 ## Logging
 

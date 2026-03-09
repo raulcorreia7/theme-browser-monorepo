@@ -1,4 +1,4 @@
-FROM node:lts-trixie-slim
+FROM node:lts-trixie-slim AS base
 
 LABEL org.opencontainers.image.title="theme-browser registry refresh runner"
 LABEL org.opencontainers.image.description="Scheduled runner for the theme-browser monorepo registry pipeline"
@@ -10,17 +10,19 @@ RUN apt-get update \
     ca-certificates \
     curl \
     git \
-    jq \
-    lua5.1 \
-    make \
-    neovim \
     openssh-client \
-    python3 \
+    jq \
     ripgrep \
-    g++ \
+    build-essential \
+    make \
+    python3 \
+    lua5.1 \
+    neovim \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable
+
+FROM base AS runner
 
 WORKDIR /work
 
