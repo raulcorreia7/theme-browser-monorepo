@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
-.PHONY: all help status clean refresh refresh-testing validate test test-plugin verify verify-versioning install-hooks update-submodules release release-dry
+.PHONY: all help status clean build refresh refresh-testing validate test test-plugin verify verify-versioning install-hooks update-submodules release release-dry
 
 all: verify
 
@@ -32,46 +32,50 @@ status:
 	@echo ""
 	@echo "=== packages/registry ===" && git -C packages/registry status --short --branch
 
+build:
+	@mkdir -p bin
+	@go build -ldflags "-X main.version=$$(cat VERSION)" -o bin/tb ./cmd/tb
+
 refresh:
-	@bash ./scripts/refresh.sh
+	@./bin/tb refresh
 
 refresh-testing:
-	@bash ./scripts/refresh.sh --testing
+	@./bin/tb refresh --testing
 
 validate:
-	@pnpm --filter @theme-browser/registry validate
+	@cd packages/registry && go run ./cmd/registry validate -i artifacts/themes.json
 
 test:
-	@pnpm --filter @theme-browser/registry test
+	@cd packages/registry && go test ./...
 
 test-plugin:
 	@$(MAKE) -C packages/plugin verify
 
 verify:
-	@bash ./scripts/verify-versioning.sh
+	@$(MAKE) verify-versioning
 	@$(MAKE) test
 	@$(MAKE) test-plugin
 	@$(MAKE) validate
 
 verify-versioning:
-	@bash ./scripts/verify-versioning.sh
+	@./bin/tb verify-versioning
 
 install-hooks:
-	@bash ./scripts/install-hooks.sh
+	@./bin/tb install-hooks
 
 update-submodules:
-	@bash ./scripts/update-submodules.sh
+	@./bin/tb update-submodules
 
 release:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
-	@bash ./scripts/release.sh "$(VERSION)"
+	@./bin/tb release "$(VERSION)"
 
 release-dry:
 	@[[ -n "$(VERSION)" ]] || { echo "error: VERSION is required" >&2; exit 1; }
-	@bash ./scripts/release.sh "$(VERSION)" --dry-run
+	@./bin/tb release "$(VERSION)" --dry-run
 
 clean:
-	@pnpm --filter @theme-browser/registry clean
+	@rm -rf packages/registry/dist packages/registry/coverage packages/registry/.state packages/registry/artifacts packages/registry/reports
 	@rm -rf reports .cache
-	@$(MAKE) -C packages/plugin clean
+	@rm -rf packages/plugin/dist
 	@echo "✓ Cleaned"
