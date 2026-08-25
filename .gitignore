@@ -16,3 +16,6 @@ secrets/
 credentials/
 *.secret
 *.credentials
+
+# Go binary output
+bin/

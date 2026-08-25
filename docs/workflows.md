@@ -8,8 +8,8 @@ Keep refresh and release separate.
 
 | Workflow | Trigger | Changes allowed | Must not do |
 |----------|---------|-----------------|-------------|
-| `refresh` | Upstream repo drift, star changes, detection improvements, bundled registry refresh | Registry artifacts, bundled plugin registry, submodule pointers | Bump versions, edit changelogs, create tags |
-| `release` | Plugin behavior change, registry contract change, compatibility change, intentional stable cut | Version metadata, compatibility series, tags, release commits | Smuggle in unrelated data churn |
+| `tb refresh` | Upstream repo drift, star changes, detection improvements, bundled registry refresh | Registry artifacts, bundled plugin registry, submodule pointers | Bump versions, edit changelogs, create tags |
+| `tb release` | Plugin behavior change, registry contract change, compatibility change, intentional stable cut | Version metadata, compatibility series, tags, release commits | Smuggle in unrelated data churn |
 
 ## Refresh
 
@@ -18,11 +18,14 @@ release.
 
 Expected flow:
 
-1. run `make refresh`
+1. run `make build` once, then `make refresh`
 2. run `make verify`
 3. commit changed data in nested repos if needed
 4. stage and commit root submodule pointers
 5. push
+
+For scheduled unattended runs, use `./bin/tb refresh --unattended`; see
+`automation.md`.
 
 ## Release
 
@@ -43,15 +46,18 @@ Expected flow:
 Release metadata is driven from one explicit version input:
 
 ```bash
-make release VERSION=X.Y.Z
+./bin/tb release X.Y.Z        # or: make release VERSION=X.Y.Z
 ```
 
 That one value propagates to:
 
-- root version
-- registry package version
-- plugin compatibility series
+- the root `VERSION` file (and the embedded copy in `internal/appversion/VERSION`)
+- `packages/registry/internal/version/VERSION`
+- plugin compatibility series in `sync.lua`
 - matching git tags
+
+Preview first with `--dry-run` (`make release-dry VERSION=X.Y.Z`). See
+`release.md` for the full runbook.
 
 ## Why The Split Exists
 

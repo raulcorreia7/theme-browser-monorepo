@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=/opt/theme-browser-monorepo
 EnvironmentFile=/etc/theme-browser/registry-refresh.env
-ExecStart=/usr/bin/env bash ./scripts/registry-refresh.sh
+ExecStart=/opt/theme-browser-monorepo/bin/tb refresh --unattended
 
 [Install]
 WantedBy=multi-user.target

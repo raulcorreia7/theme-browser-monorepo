@@ -19,7 +19,7 @@ inside product docs.
 | Doc | Audience | Use it when | Freshness trigger |
 |-----|----------|-------------|-------------------|
 | `release.md` | Release owner | You are preparing or verifying a coordinated release | Release script, changelog policy, or version rules change |
-| `automation.md` | Ops owner | You are running the scheduled refresh job | Runner scripts, image helpers, env vars, or commit flow changes |
+| `automation.md` | Ops owner | You are running the scheduled refresh job | tb refresh flags, env vars, or commit flow changes |
 | `theme-detection.md` | Registry maintainer | You are debugging a specific pipeline stage | Stage scripts, output paths, or debug commands change |
 
 ## Review Priority
@@ -35,14 +35,12 @@ Review these first when time is limited.
 | P1 | `automation.md` | Scheduled refresh drift can break unattended jobs | Ops owner | Same change as runner, image, or env changes |
 | P2 | `workflows.md` | Explains ownership boundaries between refresh and release | Workspace maintainer | Same change as workflow boundaries |
 | P2 | `theme-detection.md` | Debug reference for stage-level registry work | Registry maintainer | Same change as stage scripts or output paths |
-| P3 | `theme-detection-heuristics.md` | Useful when debugging strategy picks, but not a first-stop guide | Registry maintainer | Same change as scoring, tie-breaks, or hints |
 
 ## Reference
 
 | Doc | Audience | Use it when | Freshness trigger |
 |-----|----------|-------------|-------------------|
 | `workflows.md` | Maintainer | You need the refresh vs release boundary | Workflow ownership or outputs change |
-| `theme-detection-heuristics.md` | Registry maintainer | You need scoring, tie-breaks, or hint rules | Detection scoring or manual hint rules change |
 | `../packages/plugin/docs/configuration.md` | Plugin user | You need the authoritative plugin config reference | Plugin defaults, option names, or keymaps change |
 
 ## Escalate Instead
@@ -57,7 +55,7 @@ contract material when they drift:
 
 Review docs in the same change whenever you touch any of these:
 
-- root `make` targets or root workflow scripts
+- root `make` targets or `cmd/tb` workflows
 - registry output paths, stage flags, or `.env` requirements
 - plugin commands, defaults, keymaps, or persistence behavior
 - release checks, version propagation, or tag policy
