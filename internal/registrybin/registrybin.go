@@ -22,14 +22,15 @@ func Build(registryDir string) error {
 
 // Run executes registryDir/bin/registry with the given args, streaming output.
 func Run(registryDir string, args ...string) error {
-	bin := filepath.Join(registryDir, "bin", "registry")
-	cmd := exec.Command(bin, args...)
+	// bin is resolved against cmd.Dir (registryDir), not the process CWD.
+	rel := filepath.Join("bin", "registry")
+	cmd := exec.Command(rel, args...)
 	cmd.Dir = registryDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s %s (in %s): %w", bin, joinArgs(args), registryDir, err)
+		return fmt.Errorf("%s/%s %s (in %s): %w", registryDir, rel, joinArgs(args), registryDir, err)
 	}
 	return nil
 }
