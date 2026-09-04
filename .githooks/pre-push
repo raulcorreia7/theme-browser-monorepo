@@ -5,5 +5,5 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 
 cd "$ROOT_DIR"
-(make -s build >/dev/null 2>&1 || true)
+(just build >/dev/null 2>&1 || true)
 ./bin/tb verify-versioning

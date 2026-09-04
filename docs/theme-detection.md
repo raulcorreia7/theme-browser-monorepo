@@ -6,8 +6,8 @@ full monorepo workflow.
 Normal top-level flow:
 
 ```bash
-make refresh
-make verify
+just refresh
+just verify
 ```
 
 ## Run From

@@ -28,7 +28,7 @@ Review these first when time is limited.
 
 | Priority | Doc | Why it comes first | Owner | Review by |
 |----------|-----|--------------------|-------|-----------|
-| P0 | `../README.md` | Root entry point for setup, make targets, and doc discovery | Workspace maintainer | Same change as root workflow updates |
+| P0 | `../README.md` | Root entry point for setup, just recipes, and doc discovery | Workspace maintainer | Same change as root workflow updates |
 | P0 | `../packages/plugin/README.md` | Main user-facing install, command, and persistence guide | Plugin maintainer | Same change as plugin UX or default changes |
 | P0 | `../packages/registry/README.md` | Operator entry point for registry setup, outputs, and commands | Registry maintainer | Same change as pipeline or output changes |
 | P1 | `release.md` | Release mistakes are costly and block coordinated cuts | Release owner | Before every release |
@@ -55,7 +55,7 @@ contract material when they drift:
 
 Review docs in the same change whenever you touch any of these:
 
-- root `make` targets or `cmd/tb` workflows
+- root `just` recipes or `cmd/tb` workflows
 - registry output paths, stage flags, or `.env` requirements
 - plugin commands, defaults, keymaps, or persistence behavior
 - release checks, version propagation, or tag policy

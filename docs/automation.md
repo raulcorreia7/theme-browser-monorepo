@@ -38,7 +38,8 @@ the deployment shape settles.
 Host packages:
 
 - `git`
-- Go 1.22+ (to run `make build`)
+- `just` (task runner, for `just build` and workspace recipes)
+- Go 1.22+ (to run `just build`)
 - `neovim` (for plugin verification)
 
 These cover git operations, workspace verification, and plugin checks.
@@ -88,7 +89,7 @@ Assume the workspace is checked out at `/opt/theme-browser-monorepo`.
 ```bash
 git clone --recurse-submodules https://github.com/raulcorreia7/theme-browser-monorepo.git /opt/theme-browser-monorepo
 cd /opt/theme-browser-monorepo
-make build
+just build
 GITHUB_TOKEN=... \
 GIT_AUTHOR_NAME="theme-browser bot" \
 GIT_AUTHOR_EMAIL="bot@example.com" \

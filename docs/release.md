@@ -12,8 +12,8 @@ drift before a release is tagged.
 Preferred root commands:
 
 ```bash
-make release-dry VERSION=X.Y.Z
-make release VERSION=X.Y.Z
+just release-dry X.Y.Z
+just release X.Y.Z
 ```
 
 Direct CLI usage when you need extra control:
@@ -34,7 +34,7 @@ Useful flags:
 
 ## Preflight Checks
 
-`make verify-versioning` (`tb verify-versioning`) and `tb release` fail if any
+`just verify-versioning` (`tb verify-versioning`) and `tb release` fail if any
 of these drift:
 
 - root and registry versions differ
@@ -47,7 +47,7 @@ of these drift:
 - the workspace is not on `main` or `master`
 - the root repo is not clean before the release starts
 
-Use `make verify` when you also want registry tests, plugin verification, and
+Use `just verify` when you also want registry tests, plugin verification, and
 registry validation before tagging.
 
 ## What The Release Updates
@@ -69,13 +69,13 @@ files.
 
 1. Update `CHANGELOG.md` with the new version entry.
 2. Update `packages/plugin/CHANGELOG.md` with the same version entry.
-3. Run `make update-submodules` if you want the latest upstream submodule state.
-4. Run `make build && make verify`.
-5. Run `make release-dry VERSION=X.Y.Z`.
-6. Run `make release VERSION=X.Y.Z`.
+3. Run `just update-submodules` if you want the latest upstream submodule state.
+4. Run `just build && just verify`.
+5. Run `just release-dry X.Y.Z`.
+6. Run `just release X.Y.Z`.
 7. Push commits and tags if you did not use `--push`.
 
-After a release that changed the root `VERSION`, run `make build` so the `tb`
+After a release that changed the root `VERSION`, run `just build` so the `tb`
 binary embeds the new app version before the next `verify-versioning`.
 
 ## Hooks
@@ -83,7 +83,7 @@ binary embeds the new app version before the next `verify-versioning`.
 Install local hooks once:
 
 ```bash
-make install-hooks
+just install-hooks
 ```
 
 That sets up a `pre-push` hook that reruns the same versioning verification.
@@ -93,7 +93,7 @@ That sets up a `pre-push` hook that reruns the same versioning verification.
 Use:
 
 ```bash
-make update-submodules
+just update-submodules
 ```
 
 That helper:

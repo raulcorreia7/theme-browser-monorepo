@@ -18,8 +18,8 @@ release.
 
 Expected flow:
 
-1. run `make build` once, then `make refresh`
-2. run `make verify`
+1. run `just build` once, then `just refresh`
+2. run `just verify`
 3. commit changed data in nested repos if needed
 4. stage and commit root submodule pointers
 5. push
@@ -46,7 +46,7 @@ Expected flow:
 Release metadata is driven from one explicit version input:
 
 ```bash
-./bin/tb release X.Y.Z        # or: make release VERSION=X.Y.Z
+./bin/tb release X.Y.Z        # or: just release X.Y.Z
 ```
 
 That one value propagates to:
@@ -56,7 +56,7 @@ That one value propagates to:
 - plugin compatibility series in `sync.lua`
 - matching git tags
 
-Preview first with `--dry-run` (`make release-dry VERSION=X.Y.Z`). See
+Preview first with `--dry-run` (`just release-dry X.Y.Z`). See
 `release.md` for the full runbook.
 
 ## Why The Split Exists

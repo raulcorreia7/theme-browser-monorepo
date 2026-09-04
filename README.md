@@ -8,14 +8,14 @@ indexer.
 ```bash
 git clone --recurse-submodules https://github.com/raulcorreia7/theme-browser-monorepo.git
 cd theme-browser-monorepo
-make build
-make verify
+just build
+just verify
 ```
 
 ## Features
 
 - One root workspace for cross-repo refresh, verification, and release work.
-- A single Go CLI (`bin/tb`) plus root `make` targets for operator flows.
+- A single Go CLI (`bin/tb`) plus root `just` recipes for operator flows.
 - Nested package READMEs for package-local setup, commands, and troubleshooting.
 - Runbooks for refresh automation, release coordination, and registry debugging.
 
@@ -35,62 +35,62 @@ Registry development also needs a GitHub token in
 Build the workspace CLI once:
 
 ```bash
-make build
+just build
 ```
 
-Use the root `Makefile` as the canonical workspace interface.
+Use the root `justfile` as the canonical workspace interface (`just --list` shows the recipes).
 
 Common workflows:
 
 ```bash
-make refresh
-make refresh-testing
-make verify
+just refresh
+just refresh-testing
+just verify
 ```
 
 Focused checks:
 
 ```bash
-make test
-make validate
-make test-plugin
-make verify-versioning
+just test
+just validate
+just test-plugin
+just verify-versioning
 ```
 
 Release flow:
 
 ```bash
-make release-dry VERSION=X.Y.Z
-make release VERSION=X.Y.Z
+just release-dry X.Y.Z
+just release X.Y.Z
 ```
 
 Automation helpers:
 
 ```bash
-make install-hooks
-make update-submodules
+just install-hooks
+just update-submodules
 ```
 
 ## Commands
 
 | Command | Use it when |
 |---------|-------------|
-| `make build` | Build the `tb` CLI into `bin/tb` |
-| `make refresh` | Regenerate registry artifacts and the bundled plugin registry |
-| `make refresh-testing` | Run the refresh flow with isolated testing outputs |
-| `make verify` | Run versioning checks, registry tests, plugin verification, and registry validation |
-| `make test` | Run registry tests only |
-| `make validate` | Validate generated registry output (`artifacts/themes.json`) |
-| `make test-plugin` | Run plugin verification only |
-| `make verify-versioning` | Check changelog, version, and compatibility alignment via `tb verify-versioning` |
-| `make release-dry VERSION=X.Y.Z` | Preview a coordinated release via `tb release --dry-run` |
-| `make release VERSION=X.Y.Z` | Bump versions and create release tags via `tb release` |
-| `make update-submodules` | Fast-forward nested repos and stage new pointers via `tb update-submodules` |
-| `make install-hooks` | Configure local git hooks via `tb install-hooks` |
-| `make status` | Show git status of both nested repos |
-| `make clean` | Remove generated artifacts and package build outputs |
+| `just build` | Build the `tb` CLI into `bin/tb` |
+| `just refresh` | Regenerate registry artifacts and the bundled plugin registry |
+| `just refresh-testing` | Run the refresh flow with isolated testing outputs |
+| `just verify` | Run versioning checks, registry tests, plugin verification, and registry validation |
+| `just test` | Run registry tests only |
+| `just validate` | Validate generated registry output (`artifacts/themes.json`) |
+| `just test-plugin` | Run plugin verification only |
+| `just verify-versioning` | Check changelog, version, and compatibility alignment via `tb verify-versioning` |
+| `just release-dry X.Y.Z` | Preview a coordinated release via `tb release --dry-run` |
+| `just release X.Y.Z` | Bump versions and create release tags via `tb release` |
+| `just update-submodules` | Fast-forward nested repos and stage new pointers via `tb update-submodules` |
+| `just install-hooks` | Configure local git hooks via `tb install-hooks` |
+| `just status` | Show git status of both nested repos |
+| `just clean` | Remove generated artifacts and package build outputs |
 
-Run `make help` to print the same command surface.
+Run `just --list` to print the same command surface.
 
 ## Architecture
 
